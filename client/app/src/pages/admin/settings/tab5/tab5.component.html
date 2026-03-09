@@ -48,6 +48,12 @@
     </div>
     <div class="form-group">
       <label>
+        <input class="form-check-input" id="smtp2_enabled" [(ngModel)]="nodeResolver.dataModel.smtp2_enabled" type="checkbox" />
+        <span>{{ 'Enable secondary SMTP server' | translate }}</span>
+      </label>
+    </div>
+    <div class="form-group">
+      <label>
         <input class="form-check-input" name="node.dataModel.allow_indexing" [(ngModel)]="nodeResolver.dataModel.allow_indexing" type="checkbox" />
         <span>{{ 'Enable search engines indexing' | translate }}</span>
       </label>

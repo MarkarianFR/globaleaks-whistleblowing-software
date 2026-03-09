@@ -246,6 +246,7 @@ AdminNodeDesc = {
     'adminonly': bool,
     'custom_support_url': url_regexp_or_empty,
     'pgp': bool,
+    'smtp2_enabled': bool,
     'user_privacy_policy_text': str,
     'user_privacy_policy_url': str
 }
@@ -276,6 +277,15 @@ AdminNotificationDesc = {
     'smtp_username': str,
     'smtp_password': str,
     'smtp_source_email': email_regexp,
+    'smtp2_template_types': [str],
+    'smtp2_server': str,
+    'smtp2_port': int,
+    'smtp2_security': str,  # 'TLS' or 'SSL' only
+    'smtp2_authentication': bool,
+    'smtp2_username': str,
+    'smtp2_password': str,
+    'smtp2_source_email': email_regexp,
+    'smtp2_failover': bool,
     'enable_admin_notification_emails': bool,
     'enable_analyst_notification_emails': bool,
     'enable_custodian_notification_emails': bool,

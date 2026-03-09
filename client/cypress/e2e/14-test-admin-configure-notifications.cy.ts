@@ -8,4 +8,45 @@ describe("admin configure mail", () => {
 
     cy.logout();
   });
+
+  it("should enable secondary SMTP", () => {
+    cy.login_admin();
+    cy.visit("/#/admin/settings");
+    cy.get('[data-cy="advanced"]').click().should("be.visible").click();
+
+    cy.get('#smtp2_enabled').click();
+
+    cy.get("#save").click();
+    cy.logout();
+  });
+
+  it("should test SMTP (primary) configuration", () => {
+    cy.login_admin();
+    cy.visit("/#/admin/notifications");
+
+    cy.get('#test_mail').click();
+
+    cy.get('input[name="to_mail_address"]').clear().type('testuser@example.com');
+
+    cy.get('#confirm').click();
+    cy.wait(1000);
+
+    cy.logout();
+  });
+
+  it("should test SMTP (secondary) configuration", () => {
+    cy.login_admin();
+    cy.visit("/#/admin/notifications");
+
+    cy.get('[data-cy="smtp2"]').click();
+
+    cy.get('#test_mail').click();
+
+    cy.get('input[name="to_mail_address"]').clear().type('testuser@example.com');
+
+    cy.get('#confirm').click();
+    cy.wait(1000);
+
+    cy.logout();
+  });
 });

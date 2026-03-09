@@ -29,6 +29,7 @@ export class nodeResolverModel {
   signup_tos1_enable: boolean;
   signup_tos2_enable: boolean;
   simplified_login: boolean;
+  smtp2_enabled: boolean;
   subdomain: string;
   threshold_free_disk_megabytes_high: number;
   threshold_free_disk_megabytes_low: number;
