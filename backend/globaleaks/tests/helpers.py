@@ -373,6 +373,7 @@ class MockDict:
             'basic_auth_password': '',
             'custom_support_url': '',
             'pgp': False,
+            'smtp2_enabled': False,
             'user_privacy_policy_text': '',
             'user_privacy_policy_url': ''
         }
