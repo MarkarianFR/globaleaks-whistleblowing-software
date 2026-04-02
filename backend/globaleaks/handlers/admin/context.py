@@ -2,7 +2,7 @@ from globaleaks import models
 from globaleaks.handlers.base import BaseHandler
 from globaleaks.handlers.operation import OperationHandler
 from globaleaks.models import fill_localized_keys, get_localized_values
-from globaleaks.orm import db_add, db_del, db_get, transact, tw
+from globaleaks.orm import db_add, db_del, db_get, db_log, transact
 from globaleaks.rest import requests, errors
 
 
@@ -23,7 +23,8 @@ def admin_serialize_context(session, context, language):
 
     ret = {
         'id': context.id,
-        'hidden': context.hidden,
+        'hidden': context.status == 'hidden',
+        'status': context.status if context.status else 'enabled',
         'tip_timetolive': context.tip_timetolive,
         'tip_reminder': context.tip_reminder,
         'select_all_receivers': context.select_all_receivers,
@@ -54,7 +55,8 @@ def get_contexts(session, tid, language):
     :return: a dictionary representing the serialization of the contexts.
     """
     contexts = session.query(models.Context) \
-                      .filter(models.Context.tid == tid) \
+                      .filter(models.Context.tid == tid,
+                              models.Context.status != 'deleted') \
                       .order_by(models.Context.order)
 
     return [admin_serialize_context(session, context, language) for context in contexts]
@@ -95,7 +97,11 @@ def get_context(session, tid, context_id, language):
     :param language: The language to be used for the serialization
     :return: a context descriptor serialized in the specified language
     """
-    context = session.query(models.Context).filter(models.Context.tid == tid, models.Context.id == context_id).one()
+    context = session.query(models.Context).filter(
+        models.Context.tid == tid,
+        models.Context.id == context_id,
+        models.Context.status != 'deleted'
+    ).one()
 
     return admin_serialize_context(session, context, language)
 
@@ -195,7 +201,8 @@ def update_context(session, tid, context_id, request, language):
     context = db_get(session,
                      models.Context,
                      (models.Context.tid == tid,
-                      models.Context.id == context_id))
+                      models.Context.id == context_id,
+                      models.Context.status != 'deleted'))
     context = db_update_context(session, tid, context, request, language)
 
     return admin_serialize_context(session, context, language)
@@ -210,7 +217,10 @@ def order_elements(session, tid, ids, *args, **kwargs):
     :param tid: The tenant ID
     :param ids: The ids of the contexts to be reordered
     """
-    ctxs = session.query(models.Context).filter(models.Context.tid == tid)
+    ctxs = session.query(models.Context).filter(
+        models.Context.tid == tid,
+        models.Context.status != 'deleted'
+    )
 
     id_dict = {ctx.id: ctx for ctx in ctxs}
 
@@ -246,6 +256,34 @@ class ContextsCollection(OperationHandler):
         }
 
 
+def db_delete_context(session, tid, user_session, context_id):
+    """
+    Soft delete a context: mark as deleted and remove recipient associations.
+    Reports are preserved.
+
+    :param session: An ORM session
+    :param tid: The tenant ID
+    :param user_session: The session of the user performing the operation
+    :param context_id: The context ID to delete
+    """
+    context = db_get(session,
+                     models.Context,
+                     (models.Context.tid == tid,
+                      models.Context.id == context_id))
+
+    context.status = 'deleted'
+
+    db_del(session, models.ReceiverContext, models.ReceiverContext.context_id == context_id)
+
+    if user_session:
+        db_log(session, tid=tid, type='delete_context', user_id=user_session.user_id, object_id=context_id)
+
+
+@transact
+def delete_context(session, tid, user_session, context_id):
+    return db_delete_context(session, tid, user_session, context_id)
+
+
 class ContextInstance(BaseHandler):
     check_roles = 'admin'
     invalidate_cache = True
@@ -264,9 +302,7 @@ class ContextInstance(BaseHandler):
 
     def delete(self, context_id):
         """
-        Delete the specified context.
+        Soft delete the specified context.
+        The context will be marked as deleted while preserving existing reports.
         """
-        return tw(db_del,
-                  models.Context,
-                  (models.Context.tid == self.request.tid,
-                   models.Context.id == context_id))
+        return delete_context(self.request.tid, self.session, context_id)

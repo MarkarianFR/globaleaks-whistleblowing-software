@@ -18,7 +18,6 @@ from globaleaks.state import State
 from globaleaks.transactions import db_get_user
 from globaleaks.utils.crypto import GCE, generateRandomPassword, sha256
 from globaleaks.utils.utility import datetime_null, uuid4
-from datetime import datetime
 
 
 def db_create_user(session, tid, user_session, request, language):
@@ -126,7 +125,48 @@ def db_create_user(session, tid, user_session, request, language):
     return user
 
 
-def db_delete_user(session, tid, user_session, user_id):
+def db_get_user_stats(session, tid, user_id):
+    """
+    Get statistics about a user's report access
+
+    :param session: An ORM session
+    :param tid: A tenant ID
+    :param user_id: The ID of the user
+    :return: A dictionary with report access statistics
+    """
+    from sqlalchemy import func
+
+    total_reports = session.query(func.count(models.ReceiverTip.id)).filter(
+        models.ReceiverTip.receiver_id == user_id
+    ).scalar() or 0
+
+    user_tips = session.query(models.ReceiverTip.internaltip_id).filter(
+        models.ReceiverTip.receiver_id == user_id
+    ).subquery()
+
+    exclusive_reports = 0
+    for (internaltip_id,) in session.query(user_tips.c.internaltip_id):
+        recipient_count = session.query(func.count(models.ReceiverTip.id)).filter(
+            models.ReceiverTip.internaltip_id == internaltip_id
+        ).scalar() or 0
+        if recipient_count == 1:
+            exclusive_reports += 1
+
+    last_update = session.query(func.max(models.InternalTip.update_date)).join(
+        models.ReceiverTip,
+        models.InternalTip.id == models.ReceiverTip.internaltip_id
+    ).filter(
+        models.ReceiverTip.receiver_id == user_id
+    ).scalar()
+
+    return {
+        'total_reports': total_reports,
+        'exclusive_reports': exclusive_reports,
+        'last_update': last_update.isoformat() if last_update else None
+    }
+
+
+def db_delete_user(session, tid, user_session, user_id, expected_total=None, expected_exclusive=None, expected_last_update=None):
     db_get(session, models.User, models.User.id == user_session.user_id)
 
     user = db_get(session, models.User, models.User.id == user_id)
@@ -138,13 +178,22 @@ def db_delete_user(session, tid, user_session, user_id):
         # Prevent users to delete privileged users when escrow keys could be invalidated
         raise errors.ForbiddenOperation
 
-    db_del(session, models.User, (models.User.tid == tid, models.User.id == user_id))
+    stats = db_get_user_stats(session, tid, user_id)
 
-    if user.id == user.profile_id:
-        # in this condition we should delete the profile since it will become unused
-        db_del(session, models.UserProfile, models.UserProfile.id == user.id)
+    if expected_total is not None and expected_exclusive is not None:
+        stats_changed = (
+            stats['total_reports'] != expected_total or
+            stats['exclusive_reports'] != expected_exclusive or
+            stats['last_update'] != expected_last_update
+        )
+        if stats_changed:
+            raise errors.UserStatsChanged
 
-    db_log(session, tid=tid, type='delete_user', user_id=user_session.user_id, object_id=user_id)
+    user.status = 'deleted'
+
+    db_del(session, models.ReceiverContext, models.ReceiverContext.receiver_id == user_id)
+
+    db_log(session, tid=tid, type='delete_user', user_id=user_session.user_id, object_id=user_id, data=stats)
 
 
 @transact
@@ -225,10 +274,16 @@ def db_get_users(session, tid, role=None, language=None):
     :return: A list of serialized descriptors of the users defined on the specified tenant
     """
     if role is None:
-        users = session.query(models.User).filter(models.User.tid == tid)
+        users = session.query(models.User).filter(
+            models.User.tid == tid,
+            models.User.status != 'deleted'
+        )
     else:
-        users = session.query(models.User).filter(models.User.tid == tid,
-                                                  models.User.role == role)
+        users = session.query(models.User).filter(
+            models.User.tid == tid,
+            models.User.role == role,
+            models.User.status != 'deleted'
+        )
 
     language = language or State.tenants[tid].cache.default_language
 
@@ -239,7 +294,11 @@ def get_user(session, tid, id):
     """
     Return specific user.
     """
-    user = session.query(models.User).filter(models.User.id == id, models.User.tid == tid).first()
+    user = session.query(models.User).filter(
+        models.User.id == id,
+        models.User.tid == tid,
+        models.User.status != 'deleted'
+    ).first()
     if user:
         return serialize_user(session, user, State.tenants[tid].cache.default_language)
 
@@ -289,5 +348,29 @@ class UserInstance(BaseHandler):
     def delete(self, user_id):
         """
         Delete the specified user.
+        Query params:
+          - expected_total: Expected total reports count (optional, for race condition prevention)
+          - expected_exclusive: Expected exclusive reports count (optional, for race condition prevention)
         """
-        return tw(db_delete_user, self.request.tid, self.session, user_id)
+        expected_total = self.request.args.get(b'expected_total', [None])[0]
+        expected_exclusive = self.request.args.get(b'expected_exclusive', [None])[0]
+        expected_last_update = self.request.args.get(b'expected_last_update', [None])[0]
+
+        if expected_total is not None:
+            expected_total = int(expected_total)
+        if expected_exclusive is not None:
+            expected_exclusive = int(expected_exclusive)
+        if expected_last_update is not None:
+            expected_last_update = expected_last_update.decode('utf-8') if isinstance(expected_last_update, bytes) else expected_last_update
+
+        return tw(db_delete_user, self.request.tid, self.session, user_id, expected_total, expected_exclusive, expected_last_update)
+
+
+class UserStats(BaseHandler):
+    check_roles = 'admin'
+
+    def get(self, user_id):
+        """
+        Retrieve statistics about a user's report access.
+        """
+        return tw(db_get_user_stats, self.request.tid, user_id)

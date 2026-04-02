@@ -73,8 +73,19 @@ export class HttpService {
     return this.httpClient.delete<Session>("api/auth/session");
   }
 
-  requestDeleteTenant(url: string): Observable<tenantResolverModel> {
+  requestDeleteTenant(url: string, expectedStats?: {open_reports: number; total_reports: number; last_update: string | null}): Observable<tenantResolverModel> {
+    if (expectedStats) {
+      let params = `?expected_open=${expectedStats.open_reports}&expected_total=${expectedStats.total_reports}`;
+      if (expectedStats.last_update) {
+        params += `&expected_last_update=${encodeURIComponent(expectedStats.last_update)}`;
+      }
+      url += params;
+    }
     return this.httpClient.delete<tenantResolverModel>(url);
+  }
+
+  requestAdminTenantStats(tenantId: number): Observable<{open_reports: number; total_reports: number; last_update: string | null}> {
+    return this.httpClient.get<{open_reports: number; total_reports: number; last_update: string | null}>(`api/admin/tenants/${tenantId}/stats`);
   }
 
   requestUpdateTenant(url: string, data: tenantResolverModel): Observable<tenantResolverModel> {
@@ -378,8 +389,20 @@ export class HttpService {
     return this.httpClient.put<User>("api/admin/users/" + id, param);
   }
 
-  requestDeleteAdminUser(id: string): Observable<User> {
-    return this.httpClient.delete<User>("api/admin/users/" + id);
+  requestDeleteAdminUser(id: string, expectedStats?: {total_reports: number; exclusive_reports: number; last_update: string | null}): Observable<User> {
+    let url = "api/admin/users/" + id;
+    if (expectedStats) {
+      let params = `?expected_total=${expectedStats.total_reports}&expected_exclusive=${expectedStats.exclusive_reports}`;
+      if (expectedStats.last_update) {
+        params += `&expected_last_update=${encodeURIComponent(expectedStats.last_update)}`;
+      }
+      url += params;
+    }
+    return this.httpClient.delete<User>(url);
+  }
+
+  requestAdminUserStats(id: string): Observable<{total_reports: number; exclusive_reports: number; last_update: string | null}> {
+    return this.httpClient.get<{total_reports: number; exclusive_reports: number; last_update: string | null}>("api/admin/users/" + id + "/stats");
   }
 
   requestAddAdminUserProfile(param: NewUserProfile): Observable<UserProfile> {

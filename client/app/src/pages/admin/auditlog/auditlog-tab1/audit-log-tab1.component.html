@@ -1,4 +1,4 @@
-<app-paginated-interface [mode]="'table'" [items]="this.filteredAuditLog">
+<app-paginated-interface [mode]="'table'" [items]="this.filteredAuditLog" [searchText]="selectedUserId">
   <ng-template #header>
     <tr>
       <th>

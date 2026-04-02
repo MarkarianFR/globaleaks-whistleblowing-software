@@ -115,15 +115,13 @@ export class ContextEditorComponent implements OnInit {
   }
 
   deleteContext(context: contextResolverModel): void {
-    this.openConfirmableModalDialog(context, "").subscribe();
+    this.openConfirmableModalDialog(context).subscribe();
   }
 
-  openConfirmableModalDialog(arg: contextResolverModel, scope: any): Observable<string> {
-    scope = !scope ? this : scope;
+  openConfirmableModalDialog(arg: contextResolverModel): Observable<string> {
     return new Observable((observer) => {
       const modalRef = this.modalService.open(DeleteConfirmationComponent,{backdrop: 'static',keyboard: false});
-      modalRef.componentInstance.arg = arg;
-      modalRef.componentInstance.scope = scope;
+      modalRef.componentInstance.context = arg;
       modalRef.componentInstance.confirmFunction = () => {
         observer.complete()
         return this.utilsService.deleteAdminContext(arg.id).subscribe(_ => {

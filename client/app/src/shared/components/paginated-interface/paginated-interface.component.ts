@@ -23,6 +23,7 @@ import {PaginationComponent} from '@app/shared/components/pagination/pagination.
 export class PaginatedInterfaceComponent<T> implements AfterViewInit, DoCheck, OnChanges {
   @Input() mode: 'table' | 'simple' = 'simple';
   @Input() items: T[] = [];
+  @Input() searchText = '';
   @Input() filterField = '';
   @Input() itemsPerPage = 20;
 
@@ -37,7 +38,6 @@ export class PaginatedInterfaceComponent<T> implements AfterViewInit, DoCheck, O
   @ContentChild('header') header?: TemplateRef<any>;
   @ContentChild('content') content?: TemplateRef<any>;
 
-  searchText = '';
   currentPage = 1;
   filteredItems: T[] = [];
   paginatedItems: T[] = [];
@@ -60,7 +60,7 @@ export class PaginatedInterfaceComponent<T> implements AfterViewInit, DoCheck, O
   }
 
   ngOnChanges(changes: SimpleChanges): void {
-    if (changes['items'] || changes['filter'] || changes['orderBy'] || changes['orderDesc']) {
+    if (changes['items'] || changes['searchText'] || changes['filter'] || changes['orderBy'] || changes['orderDesc']) {
       this.update();
     }
   }

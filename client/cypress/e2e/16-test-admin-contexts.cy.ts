@@ -26,11 +26,22 @@ describe("admin configure, add, and delete channels", () => {
     cy.login_admin();
 
     cy.visit("#/admin/channels");
-    const add_context = async (context_name: string) => {
+    const add_context = (context_name: string) => {
       cy.get(".show-add-context-btn").click();
       cy.get("[name='new_context.name']").type(context_name);
       cy.get("#add-btn").click();
-      cy.contains(context_name).should("be.visible");
+
+      cy.contains(".config-item", context_name)
+        .should("be.visible")
+        .within(() => {
+          cy.get("#edit_context").click();
+          cy.get("select[name='contextResolver.status']").select("hidden");
+          cy.get("#save_context").click();
+        });
+
+      cy.contains(".config-item", context_name).within(() => {
+        cy.contains(".badge", "Hidden").should("be.visible");
+      });
     };
 
     add_context("Topic A");
@@ -44,6 +55,9 @@ describe("admin configure, add, and delete channels", () => {
 
     cy.visit("#/admin/channels");
     cy.get("[name='delete_context']").last().click();
+
+    cy.get('[data-cy="context-delete-message"]').should('be.visible');
+
     cy.get("#modal-action-ok").click();
 
     cy.logout();
