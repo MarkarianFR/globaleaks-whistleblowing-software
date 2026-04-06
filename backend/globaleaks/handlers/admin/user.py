@@ -196,6 +196,29 @@ def db_delete_user(session, tid, user_session, user_id, expected_total=None, exp
     db_log(session, tid=tid, type='delete_user', user_id=user_session.user_id, object_id=user_id, data=stats)
 
 
+def get_delete_user_request(handler):
+    raw_request = handler.request.content.read()
+    if raw_request:
+        return handler.validate_request(raw_request, requests.AdminUserDeleteDesc)
+
+    request = {
+        'expected_total': handler.request.args.get(b'expected_total', [None])[0],
+        'expected_exclusive': handler.request.args.get(b'expected_exclusive', [None])[0],
+        'expected_last_update': handler.request.args.get(b'expected_last_update', [None])[0]
+    }
+
+    if request['expected_total'] is not None:
+        request['expected_total'] = int(request['expected_total'])
+
+    if request['expected_exclusive'] is not None:
+        request['expected_exclusive'] = int(request['expected_exclusive'])
+
+    if request['expected_last_update'] is not None and isinstance(request['expected_last_update'], bytes):
+        request['expected_last_update'] = request['expected_last_update'].decode('utf-8')
+
+    return handler.validate_request(request, requests.AdminUserDeleteDesc)
+
+
 @transact
 def create_user(session, tid, user_session, request, language):
     """
@@ -348,22 +371,19 @@ class UserInstance(BaseHandler):
     def delete(self, user_id):
         """
         Delete the specified user.
-        Query params:
+        Payload:
           - expected_total: Expected total reports count (optional, for race condition prevention)
           - expected_exclusive: Expected exclusive reports count (optional, for race condition prevention)
         """
-        expected_total = self.request.args.get(b'expected_total', [None])[0]
-        expected_exclusive = self.request.args.get(b'expected_exclusive', [None])[0]
-        expected_last_update = self.request.args.get(b'expected_last_update', [None])[0]
+        request = get_delete_user_request(self)
 
-        if expected_total is not None:
-            expected_total = int(expected_total)
-        if expected_exclusive is not None:
-            expected_exclusive = int(expected_exclusive)
-        if expected_last_update is not None:
-            expected_last_update = expected_last_update.decode('utf-8') if isinstance(expected_last_update, bytes) else expected_last_update
-
-        return tw(db_delete_user, self.request.tid, self.session, user_id, expected_total, expected_exclusive, expected_last_update)
+        return tw(db_delete_user,
+                  self.request.tid,
+                  self.session,
+                  user_id,
+                  request['expected_total'],
+                  request['expected_exclusive'],
+                  request['expected_last_update'])
 
 
 class UserStats(BaseHandler):

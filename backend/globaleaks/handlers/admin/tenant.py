@@ -144,6 +144,29 @@ def db_get_tenant_stats(session, tid):
     }
 
 
+def get_delete_tenant_request(handler):
+    raw_request = handler.request.content.read()
+    if raw_request:
+        return handler.validate_request(raw_request, requests.AdminTenantDeleteDesc)
+
+    request = {
+        'expected_open': handler.request.args.get(b'expected_open', [None])[0],
+        'expected_total': handler.request.args.get(b'expected_total', [None])[0],
+        'expected_last_update': handler.request.args.get(b'expected_last_update', [None])[0]
+    }
+
+    if request['expected_open'] is not None:
+        request['expected_open'] = int(request['expected_open'])
+
+    if request['expected_total'] is not None:
+        request['expected_total'] = int(request['expected_total'])
+
+    if request['expected_last_update'] is not None and isinstance(request['expected_last_update'], bytes):
+        request['expected_last_update'] = request['expected_last_update'].decode('utf-8')
+
+    return handler.validate_request(request, requests.AdminTenantDeleteDesc)
+
+
 @transact
 def get_tenant_stats(session, tid):
     return db_get_tenant_stats(session, tid)
@@ -460,7 +483,7 @@ class TenantInstance(BaseHandler):
     def delete(self, tid):
         """
         Delete the specified tenant.
-        Query params:
+        Payload:
           - expected_open: Expected open reports count (optional, for race condition prevention)
           - expected_total: Expected total reports count (optional, for race condition prevention)
         """
@@ -470,18 +493,15 @@ class TenantInstance(BaseHandler):
 
         tid = int(tid)
 
-        expected_open = self.request.args.get(b'expected_open', [None])[0]
-        expected_total = self.request.args.get(b'expected_total', [None])[0]
-        expected_last_update = self.request.args.get(b'expected_last_update', [None])[0]
+        request = get_delete_tenant_request(self)
 
-        if expected_open is not None:
-            expected_open = int(expected_open)
-        if expected_total is not None:
-            expected_total = int(expected_total)
-        if expected_last_update is not None:
-            expected_last_update = expected_last_update.decode('utf-8') if isinstance(expected_last_update, bytes) else expected_last_update
-
-        yield tw(db_delete_tenant, self.request.tid, self.session, tid, expected_open, expected_total, expected_last_update)
+        yield tw(db_delete_tenant,
+                 self.request.tid,
+                 self.session,
+                 tid,
+                 request['expected_open'],
+                 request['expected_total'],
+                 request['expected_last_update'])
 
 
 def db_delete_tenant(session, request_tid, user_session, tid, expected_open=None, expected_total=None, expected_last_update=None):

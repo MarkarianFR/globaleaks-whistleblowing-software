@@ -74,14 +74,15 @@ export class HttpService {
   }
 
   requestDeleteTenant(url: string, expectedStats?: {open_reports: number; total_reports: number; last_update: string | null}): Observable<tenantResolverModel> {
-    if (expectedStats) {
-      let params = `?expected_open=${expectedStats.open_reports}&expected_total=${expectedStats.total_reports}`;
-      if (expectedStats.last_update) {
-        params += `&expected_last_update=${encodeURIComponent(expectedStats.last_update)}`;
+    const options = expectedStats ? {
+      body: {
+        expected_open: expectedStats.open_reports,
+        expected_total: expectedStats.total_reports,
+        expected_last_update: expectedStats.last_update
       }
-      url += params;
-    }
-    return this.httpClient.delete<tenantResolverModel>(url);
+    } : {};
+
+    return this.httpClient.delete<tenantResolverModel>(url, options);
   }
 
   requestAdminTenantStats(tenantId: number): Observable<{open_reports: number; total_reports: number; last_update: string | null}> {
@@ -390,15 +391,15 @@ export class HttpService {
   }
 
   requestDeleteAdminUser(id: string, expectedStats?: {total_reports: number; exclusive_reports: number; last_update: string | null}): Observable<User> {
-    let url = "api/admin/users/" + id;
-    if (expectedStats) {
-      let params = `?expected_total=${expectedStats.total_reports}&expected_exclusive=${expectedStats.exclusive_reports}`;
-      if (expectedStats.last_update) {
-        params += `&expected_last_update=${encodeURIComponent(expectedStats.last_update)}`;
+    const options = expectedStats ? {
+      body: {
+        expected_total: expectedStats.total_reports,
+        expected_exclusive: expectedStats.exclusive_reports,
+        expected_last_update: expectedStats.last_update
       }
-      url += params;
-    }
-    return this.httpClient.delete<User>(url);
+    } : {};
+
+    return this.httpClient.delete<User>("api/admin/users/" + id, options);
   }
 
   requestAdminUserStats(id: string): Observable<{total_reports: number; exclusive_reports: number; last_update: string | null}> {

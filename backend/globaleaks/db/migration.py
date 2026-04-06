@@ -38,7 +38,7 @@ from globaleaks.db.migrations.update_68 import Subscriber_v_67
 from globaleaks.db.migrations.update_69 import Field_v_68, InternalTipAnswers_v_68, User_v_68, Tenant_v_68, \
     Subscriber_v_68, InternalFile_v_68, ReceiverFile_v_68, Mail_v_68
 from globaleaks.db.migrations.update_70 import InternalTipAnswers_v_69, User_v_69
-from globaleaks.db.migrations.update_71 import Tenant_v_70
+from globaleaks.db.migrations.update_71 import Tenant_v_70, Context_v_70, User_v_70
 
 from globaleaks.orm import get_engine, get_session, make_db_uri
 from globaleaks.models import config, Base
@@ -55,7 +55,7 @@ migration_mapping = OrderedDict([
     ('Config', [models._Config, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
     ('ConfigL10N', [models._ConfigL10N, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
     ('ContentForwarding', [-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, models._ContentForwarding, 0, 0]),
-    ('Context', [Context_v_61, 0, 0, 0, 0, 0, 0, 0, 0, 0, Context_v_63, 0, models._Context, 0, 0, 0, 0, 0, 0, 0]),
+    ('Context', [Context_v_61, 0, 0, 0, 0, 0, 0, 0, 0, 0, Context_v_63, 0, Context_v_70, 0, 0, 0, 0, 0, 0, models._Context]),
     ('CustomTexts', [models._CustomTexts, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
     ('EnabledLanguage', [models._EnabledLanguage, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
     ('Field', [Field_v_68, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, models._Field, 0, 0]),
@@ -85,7 +85,7 @@ migration_mapping = OrderedDict([
     ('Step', [models._Step, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
     ('Subscriber', [Subscriber_v_52, Subscriber_v_62, 0, 0, 0, 0, 0, 0, 0, 0, 0, Subscriber_v_67, 0, 0, 0, 0, Subscriber_v_68, models._Subscriber, 0, 0]),
     ('Tenant', [Tenant_v_52, Tenant_v_68, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  0, Tenant_v_70, 0, models._Tenant]),
-    ('User', [User_v_52, User_v_54, 0, User_v_56, 0, User_v_61, 0, 0, 0, 0, User_v_64, 0, 0, User_v_66, 0, User_v_68, 0, User_v_69, 0, models._User]),
+    ('User', [User_v_52, User_v_54, 0, User_v_56, 0, User_v_61, 0, 0, 0, 0, User_v_64, 0, 0, User_v_66, 0, User_v_68, 0, User_v_69, User_v_70, models._User]),
     ('UserProfile', [-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, models._UserProfile]),
     ('UserProfilePermission', [-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, models._UserProfilePermission]),
     ('UserProfileRole', [-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, models._UserProfileRole]),

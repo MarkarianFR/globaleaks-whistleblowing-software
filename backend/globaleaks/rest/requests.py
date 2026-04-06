@@ -87,6 +87,12 @@ AdminTenantDesc = {
     'profile': str,
 }
 
+AdminTenantDeleteDesc = {
+    'expected_open': int,
+    'expected_total': int,
+    'expected_last_update': str
+}
+
 FileDesc = {
     'name': str,
     'description': str,
@@ -151,6 +157,12 @@ AdminUserDesc = {
     'profile_id': str,
     'profile': dict,
     'send_activation_link': bool
+}
+
+AdminUserDeleteDesc = {
+    'expected_total': int,
+    'expected_exclusive': int,
+    'expected_last_update': str
 }
 
 UserUserDesc = {
