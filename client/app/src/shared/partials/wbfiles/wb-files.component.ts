@@ -5,22 +5,25 @@ import {HttpService} from "@app/shared/services/http.service";
 import {CryptoService} from "@app/shared/services/crypto.service";
 import {RFile} from "@app/models/app/shared-public-model";
 import {ReceiversById} from "@app/models/receiver/receiver-tip-data";
+import {WbtipService} from "@app/services/helper/wbtip.service";
 import {DatePipe} from "@angular/common";
 import {TranslateModule} from "@ngx-translate/core";
 import {TranslatorPipe} from "@app/shared/pipes/translate";
 import {ByteFmtPipe} from "@app/shared/pipes/byte-fmt.pipe";
+import {NgbTooltipModule} from "@ng-bootstrap/ng-bootstrap";
 
 @Component({
     selector: "src-wbfiles",
     templateUrl: "./wb-files.component.html",
     standalone: true,
-    imports: [DatePipe, TranslateModule, TranslatorPipe, ByteFmtPipe]
+    imports: [DatePipe, NgbTooltipModule, TranslateModule, TranslatorPipe, ByteFmtPipe]
 })
 export class WbFilesComponent implements OnInit {
   private appDataService = inject(AppDataService);
   private cryptoService = inject(CryptoService);
   private httpService = inject(HttpService);
   protected authenticationService = inject(AuthenticationService);
+  private wbTipService = inject(WbtipService);
 
   @Input() wbFile: RFile;
   @Input() ctx: string;
@@ -63,5 +66,12 @@ export class WbFilesComponent implements OnInit {
         }
       }
     );
+  }
+
+  isRFileRead(): boolean {
+    if (this.ctx === 'wbtip') {
+      return new Date(this.wbTipService.tip.last_access) > new Date(this.wbFile.creation_date);
+    }
+    return false;
   }
 }

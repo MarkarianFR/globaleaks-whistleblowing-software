@@ -54,6 +54,8 @@ export class TipsComponent implements OnInit {
   expiryDateModel: { fromDate: NgbDate | null; toDate: NgbDate | null; } | null = null;
   dropdownStatusModel: { id: number; label: string; }[] = [];
   dropdownStatusData: { id: number; label: string; }[] = [];
+  dropdownReportModificationModel: { id: number; label: string; }[] = [];
+  dropdownReportData: { id: number; label: string; }[] = [];
   dropdownContextModel: { id: number; label: string; }[] = [];
   dropdownContextData: { id: number; label: string; }[] = [];
   dropdownScoreModel: { id: number; label: string; }[] = [];
@@ -63,6 +65,7 @@ export class TipsComponent implements OnInit {
   channelDropdownVisible = false;
   statusDropdownVisible = false;
   scoreDropdownVisible = false;
+  reportModificationDropdownVisible = false;
   index: number;
   date: { year: number; month: number };
   reportDatePicker = false;
@@ -99,8 +102,6 @@ export class TipsComponent implements OnInit {
   deselectAll() {
     this.selectedTips = [];
   }
-
-  filterNewOrUpdated = (obj: { updated?: boolean }) => !!obj.updated;
 
   exportTips() {
     const selectedTips = [...this.selectedTips];
@@ -159,15 +160,31 @@ export class TipsComponent implements OnInit {
 
   processTips() {
     const uniqueKeys: string[] = [];
+    const reportUniqueKeys: string[] = [];
 
     for (const tip of this.RTips.dataModel) {
       tip.context = this.appDataService.contexts_by_id[tip.context_id];
       tip.context_name = tip.context.name;
       tip.submissionStatusStr = this.utils.getSubmissionStatusText(tip.status, tip.substatus, this.appDataService.submissionStatuses);
+      
+      if (tip.status === 'new') {
+        tip.reportModificationStr = this.translateService.instant('New');
+      } else if (!tip.updated) {
+        tip.reportModificationStr = this.translateService.instant('Updated');
+      } else {
+        tip.reportModificationStr = '';
+      }
+      
       if (!uniqueKeys.includes(tip.submissionStatusStr)) {
         uniqueKeys.push(tip.submissionStatusStr);
         this.dropdownStatusData.push({id: this.dropdownStatusData.length + 1, label: tip.submissionStatusStr});
       }
+
+      if (tip.reportModificationStr && !reportUniqueKeys.includes(tip.reportModificationStr)) {
+        reportUniqueKeys.push(tip.reportModificationStr);
+        this.dropdownReportData.push({id: this.dropdownReportData.length + 1, label: tip.reportModificationStr});
+      }
+      
       if (!uniqueKeys.includes(tip.context_name)) {
         uniqueKeys.push(tip.context_name);
         this.dropdownContextData.push({id: this.dropdownContextData.length + 1, label: tip.context_name});
@@ -196,18 +213,29 @@ export class TipsComponent implements OnInit {
 
   onChanged(model: { id: number; label: string; }[], type: string) {
     this.processTips();
-    if (model.length > 0) {
+    if (model.length > 0 && type === "Score") {
       this.dropdownContextModel = [];
       this.dropdownStatusModel = [];
+      this.dropdownReportModificationModel = [];
+      this.dropdownScoreModel = model;
+    }
+    if (model.length > 0 && type === "Status") {
+      this.dropdownContextModel = [];
       this.dropdownScoreModel = [];
-
-      if (type === "Score") {
-        this.dropdownScoreModel = model;
-      } else if (type === "Status") {
-        this.dropdownStatusModel = model;
-      } else if (type === "Context") {
-        this.dropdownContextModel = model;
-      }
+      this.dropdownReportModificationModel = [];
+      this.dropdownStatusModel = model;
+    }
+    if (model.length > 0 && type === "Report") {
+      this.dropdownContextModel = [];
+      this.dropdownScoreModel = [];
+      this.dropdownStatusModel = [];
+      this.dropdownReportModificationModel = model;
+    }
+    if (model.length > 0 && type === "Context") {
+      this.dropdownStatusModel = [];
+      this.dropdownScoreModel = [];
+      this.dropdownReportModificationModel = [];
+      this.dropdownContextModel = model;
     }
     this.applyFilter();
   }
@@ -216,7 +244,8 @@ export class TipsComponent implements OnInit {
     return filter.length > 0;
   };
 
-  resetFiltersStatus() {
+  toggleReportModificationDropdown() {
+    this.reportModificationDropdownVisible = !this.reportModificationDropdownVisible;
     this.channelDropdownVisible = false;
     this.statusDropdownVisible = false;
     this.scoreDropdownVisible = false;
@@ -226,18 +255,33 @@ export class TipsComponent implements OnInit {
   }
 
   toggleChannelDropdown() {
-    this.resetFiltersStatus();
     this.channelDropdownVisible = !this.channelDropdownVisible;
+    this.statusDropdownVisible = false;
+    this.scoreDropdownVisible = false;
+    this.reportModificationDropdownVisible = false;
+    this.reportDatePicker = false;
+    this.lastUpdatePicker = false;
+    this.expirationDatePicker = false;
   }
 
   toggleStatusDropdown() {
-    this.resetFiltersStatus();
     this.statusDropdownVisible = !this.statusDropdownVisible;
+    this.channelDropdownVisible = false;
+    this.scoreDropdownVisible = false;
+    this.reportModificationDropdownVisible = false;
+    this.reportDatePicker = false;
+    this.lastUpdatePicker = false;
+    this.expirationDatePicker = false;
   }
 
   toggleScoreDropdown() {
-    this.resetFiltersStatus();
     this.scoreDropdownVisible = !this.scoreDropdownVisible;
+    this.channelDropdownVisible = false;
+    this.statusDropdownVisible = false;
+    this.reportModificationDropdownVisible = false;
+    this.reportDatePicker = false;
+    this.lastUpdatePicker = false;
+    this.expirationDatePicker = false;
   }
 
   orderbyCast(data: rtipResolverModel[]): rtipResolverModel[] {
@@ -287,6 +331,7 @@ export class TipsComponent implements OnInit {
     this.filteredTips = this.utils.getStaticFilter(this.RTips.dataModel, this.dropdownStatusModel, "submissionStatusStr", this.translateService);
     this.filteredTips = this.utils.getStaticFilter(this.filteredTips, this.dropdownContextModel, "context_name", this.translateService);
     this.filteredTips = this.utils.getStaticFilter(this.filteredTips, this.dropdownScoreModel, "score", this.translateService);
+    this.filteredTips = this.utils.getStaticFilter(this.filteredTips, this.dropdownReportModificationModel, "reportModificationStr", this.translateService);
     this.filteredTips = this.utils.getDateFilter(this.filteredTips, this.reportDateFilter, this.updateDateFilter, this.expiryDateFilter);
   }
 
@@ -310,6 +355,7 @@ export class TipsComponent implements OnInit {
     this.reportDatePicker = false;
     this.lastUpdatePicker = false;
     this.expirationDatePicker = false;
+    this.reportModificationDropdownVisible = false;
   }
 
   exportToCsv(): void {
@@ -324,6 +370,7 @@ export class TipsComponent implements OnInit {
       important: tip.important,
       context_name: tip.context_name,
       label: tip.label,
+      report_status: tip.status === 'new' ? 'New' : tip.updated === false ? 'Updated' : '',
       status: tip.submissionStatusStr,
       creation_date: formatDate(tip.creation_date, 'dd-MM-yyyy HH:mm', 'en-US'),
       update_date: formatDate(tip.update_date, 'dd-MM-yyyy HH:mm', 'en-US'),
@@ -344,6 +391,7 @@ export class TipsComponent implements OnInit {
       'Reminder',
       'Channel',
       'Label',
+      'Report Modification',
       'Report Status',
       'Date of Report',
       'Last Update',

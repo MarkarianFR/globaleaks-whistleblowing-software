@@ -267,6 +267,8 @@ def serialize_rtip(session, itip, rtip, language):
     ret['important'] = itip.important
     ret['label'] = itip.label
     ret['enable_notifications'] = rtip.enable_notifications
+    ret['itip_last_access'] = ret['last_access']
+    ret['last_access'] = rtip.last_access
 
     iar = session.query(models.IdentityAccessRequest) \
                  .filter(models.IdentityAccessRequest.internaltip_id == itip.id) \
@@ -315,14 +317,19 @@ def serialize_rtip(session, itip, rtip, language):
 
     receiver_ids = active_receiver_ids | other_receiver_ids
 
+    rtips = session.query(models.ReceiverTip).filter(models.ReceiverTip.internaltip_id == itip.id, models.ReceiverTip.receiver_id.in_(receiver_ids)).all()
+    rtip_map = {rtip.receiver_id: rtip for rtip in rtips}
+
     users = session.query(models.User).filter(models.User.id.in_(receiver_ids)).all()
     user_map = {user.id: user for user in users}
     for uid in receiver_ids:
         user = user_map.get(uid)
+        rtip_obj = rtip_map.get(uid)
         ret['receivers'].append({
             'id': uid,
             'name': user.name if user else 'Recipient',
-            'active': uid in active_receiver_ids
+            'active': uid in active_receiver_ids,
+            'last_access': rtip_obj.last_access if rtip_obj else None
         })
 
     return ret
@@ -357,14 +364,19 @@ def serialize_wbtip(session, itip, language):
 
     receiver_ids = active_receiver_ids | other_receiver_ids
 
+    rtips = session.query(models.ReceiverTip).filter(models.ReceiverTip.internaltip_id == itip.id, models.ReceiverTip.receiver_id.in_(receiver_ids)).all()
+    rtip_map = {rtip.receiver_id: rtip for rtip in rtips}
+
     users = session.query(models.User).filter(models.User.id.in_(receiver_ids)).all()
     user_map = {user.id: user for user in users}
     for uid in receiver_ids:
         user = user_map.get(uid)
+        rtip_obj = rtip_map.get(uid)
         ret['receivers'].append({
             'id': uid,
             'name': user.public_name if user else 'Recipient',
-            'active': uid in active_receiver_ids
+            'active': uid in active_receiver_ids,
+            'last_access': rtip_obj.last_access if rtip_obj else None
         })
 
     return ret

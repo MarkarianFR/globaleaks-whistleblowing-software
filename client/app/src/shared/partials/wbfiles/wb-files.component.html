@@ -11,6 +11,20 @@
         }
 
         <span class="filename px-1">{{ wbFile.name }}</span>
+        @if (ctx === 'rtip') {
+          @if (wbFile.downloads > 0) {
+            <i class="fas fa-check text-success float-end" ngbTooltip="{{'Seen' | translate}}"></i>
+          } @else {
+            <i class="fas fa-check text-muted float-end" ngbTooltip="{{'Unseen' | translate}}"></i>
+          }
+        }
+        @if (ctx === 'wbtip') {
+          @if (isRFileRead()) {
+            <i class="fas fa-check text-success float-end" ngbTooltip="{{'Seen' | translate}}"></i>
+          } @else {
+            <i class="fas fa-check text-muted float-end" ngbTooltip="{{'Unseen' | translate}}"></i>
+          }
+        }
       </span>
 
       <span class="float-end">

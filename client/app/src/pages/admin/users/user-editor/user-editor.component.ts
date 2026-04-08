@@ -18,12 +18,13 @@ import {PasswordStrengthValidatorDirective} from "@app/shared/directive/password
 import {PasswordMeterComponent} from "@app/shared/components/password-meter/password-meter.component";
 import {TranslatorPipe} from "@app/shared/pipes/translate";
 import {CryptoService} from "@app/shared/services/crypto.service";
+import {NgbInputDatepicker} from "@ng-bootstrap/ng-bootstrap";
 
 @Component({
     selector: "src-user-editor",
     templateUrl: "./user-editor.component.html",
     standalone: true,
-    imports: [CommonModule, ImageUploadDirective, FormsModule, PasswordStrengthValidatorDirective, NgbTooltipModule, NgClass, PasswordMeterComponent, DatePipe, TranslatorPipe]
+    imports: [CommonModule, NgbInputDatepicker, ImageUploadDirective, FormsModule, PasswordStrengthValidatorDirective, NgbTooltipModule, NgClass, PasswordMeterComponent, DatePipe, TranslatorPipe]
 })
 export class UserEditorComponent implements OnInit {
   private modalService = inject(NgbModal);

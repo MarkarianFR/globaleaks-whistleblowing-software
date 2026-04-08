@@ -19,6 +19,7 @@ export class WbtipService {
     this.tip.additional_questionnaire = this.appDataService.questionnaires_by_id[this.tip.context["additional_questionnaire_id"]];
     this.tip.msg_receiver_selected = null;
     this.tip.msg_receivers_selector = [];
+    this.tip.receivers_by_id = {};
 
     this.tip.receivers.forEach((r: Receiver) => {
       const receiver = this.appDataService.receivers_by_id[r.id];
@@ -28,6 +29,7 @@ export class WbtipService {
           value: receiver.name
         });
       }
+      this.tip.receivers_by_id[r.id] = { name: r.name, active: r.active, last_access: r.last_access };
     });
   }
 
