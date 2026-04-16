@@ -9,6 +9,8 @@ import {DatePipe} from "@angular/common";
 import {TranslateModule} from "@ngx-translate/core";
 import {TranslatorPipe} from "@app/shared/pipes/translate";
 import {ByteFmtPipe} from "@app/shared/pipes/byte-fmt.pipe";
+import {FileInfoComponent} from "@app/shared/modals/file-info/file-info.component";
+import {NgbModal} from "@ng-bootstrap/ng-bootstrap";
 
 @Component({
     selector: "src-wbfiles",
@@ -21,6 +23,7 @@ export class WbFilesComponent implements OnInit {
   private cryptoService = inject(CryptoService);
   private httpService = inject(HttpService);
   protected authenticationService = inject(AuthenticationService);
+  private modalService = inject(NgbModal);
 
   @Input() wbFile: RFile;
   @Input() ctx: string;
@@ -41,6 +44,12 @@ export class WbFilesComponent implements OnInit {
         }
       );
     }
+  }
+
+  openFileInfo(wbFile: RFile) {
+    const modalRef = this.modalService.open(FileInfoComponent);
+    modalRef.componentInstance.file = wbFile;
+    modalRef.componentInstance.receivers_by_id = this.receivers_by_id;
   }
 
   downloadWBFile(wbFile: RFile) {

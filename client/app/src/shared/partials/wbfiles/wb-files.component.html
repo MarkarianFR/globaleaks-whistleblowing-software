@@ -14,6 +14,9 @@
       </span>
 
       <span class="float-end">
+        <button type="button" class="btn btn-sm btn-info" (click)="openFileInfo(wbFile)" [attr.aria-label]="'Info' | translate">
+            <i class="fa-solid fa-info"></i>
+        </button>
         <button
           type="button"
           class="tip-action-download-file download-button btn btn-sm btn-primary"

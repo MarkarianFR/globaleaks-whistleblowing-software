@@ -2,11 +2,12 @@ import {Component, Input, inject} from "@angular/core";
 import {UtilsService} from "@app/shared/services/utils.service";
 import {WbtipService} from "@app/services/helper/wbtip.service";
 import {ReceiverTipService} from "@app/services/helper/receiver-tip.service";
-import {NgbTooltipModule} from "@ng-bootstrap/ng-bootstrap";
+import {NgbTooltipModule, NgbModal} from "@ng-bootstrap/ng-bootstrap";
 import {TipFieldComponent} from "../tip-field/tip-field.component";
 import {TranslateModule} from "@ngx-translate/core";
 import {TranslatorPipe} from "@app/shared/pipes/translate";
 import {OrderByPipe} from "@app/shared/pipes/order-by.pipe";
+import {FileInfoComponent} from "@app/shared/modals/file-info/file-info.component";
 
 @Component({
     selector: "src-tip-questionnaire-answers",
@@ -16,6 +17,7 @@ import {OrderByPipe} from "@app/shared/pipes/order-by.pipe";
 })
 export class TipQuestionnaireAnswersComponent {
   protected utilsService = inject(UtilsService);
+  private modalService = inject(NgbModal);
 
   @Input() tipService: ReceiverTipService | WbtipService;
   @Input() redactOperationTitle: string;
@@ -24,5 +26,25 @@ export class TipQuestionnaireAnswersComponent {
 
   public toggleCollapse() {
     this.collapsed = !this.collapsed;
+  }
+
+  public openAnswersInfo() {
+    const questionnaire = this.tipService.tip.questionnaires[0];
+
+    if (!questionnaire || (!questionnaire.hash_sha256 && !questionnaire.hash_sha512)) {
+      return;
+    }
+
+    const modalRef = this.modalService.open(FileInfoComponent);
+    modalRef.componentInstance.file = {
+      name: 'Questionnaire',
+      type: 'application/json',
+      size: JSON.stringify(questionnaire.answers).length,
+      creation_date: new Date().toISOString(),
+      hash_sha256: questionnaire.hash_sha256,
+      hash_sha512: questionnaire.hash_sha512,
+      description: ''
+    };
+    modalRef.componentInstance.receivers_by_id = this.tipService.tip.receivers_by_id;
   }
 }

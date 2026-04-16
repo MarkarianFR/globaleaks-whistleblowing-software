@@ -9,12 +9,12 @@ import {PreferenceResolver} from "@app/shared/resolvers/preference.resolver";
 import {MaskService} from "@app/shared/services/mask.service";
 import {DatePipe} from "@angular/common";
 import {FormsModule} from "@angular/forms";
-import {NgbTooltipModule} from "@ng-bootstrap/ng-bootstrap";
+import {NgbModal, NgbTooltipModule} from "@ng-bootstrap/ng-bootstrap";
 import {TranslateModule} from "@ngx-translate/core";
 import {TranslatorPipe} from "@app/shared/pipes/translate";
 import {AutoExpandDirective} from "@app/shared/directive/auto-expand.directive";
 import {PaginatedInterfaceComponent} from "@app/shared/components/paginated-interface/paginated-interface.component";
-
+import {FileInfoComponent} from "@app/shared/modals/file-info/file-info.component";
 
 @Component({
     selector: "src-tip-comments",
@@ -29,6 +29,7 @@ export class TipCommentsComponent {
   protected authenticationService = inject(AuthenticationService);
   protected utilsService = inject(UtilsService);
   appDataService = inject(AppDataService);
+  private modalService = inject(NgbModal);
 
   @Input() tipService: ReceiverTipService | WbtipService;
   @Input() key: string;
@@ -64,5 +65,19 @@ export class TipCommentsComponent {
 
   maskContent(id: string, index: string, value: string) {
     return this.maskService.maskingContent(id,index,value,this.tipService.tip)
+  }
+
+  openCommentInfo(comment: Comment) {
+    const modalRef = this.modalService.open(FileInfoComponent);
+    modalRef.componentInstance.file = {
+      name: 'Comment',
+      type: 'text/plain',
+      size: comment.content ? comment.content.length : 0,
+      creation_date: comment.creation_date,
+      hash_sha256: comment.hash_sha256,
+      hash_sha512: comment.hash_sha512,
+      description: ''
+    };
+    modalRef.componentInstance.receivers_by_id = this.tipService.tip.receivers_by_id;
   }
 }
