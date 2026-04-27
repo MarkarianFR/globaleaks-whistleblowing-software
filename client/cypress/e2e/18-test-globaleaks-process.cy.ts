@@ -33,6 +33,24 @@ describe("globaleaks process", function () {
     cy.takeScreenshot("whistleblower/report_files", "#TipPageFilesInfoBox");
     cy.takeScreenshot("whistleblower/report_comments", "#TipCommentsBox");
 
+    cy.get('#TipQuestionnaireAnswersBox').should('be.visible');
+    cy.get('#TipQuestionnaireAnswersBox .btn-primary').first().click();
+    cy.get('.modal-title').should('be.visible');
+    cy.get('.modal-body').should('contain', 'SHA-256');
+    cy.get('.modal-body').should('contain', 'SHA-512');
+    cy.get('.modal-footer button').contains('Close').click();
+    cy.get('.modal-title').should('not.exist');
+    cy.get('.tip-action-file-info').first().then(($btn) => {
+      if ($btn.is(':visible')) {
+        cy.get('.tip-action-file-info').first().click();
+        cy.get('.modal-title').should('be.visible');
+        cy.get('.modal-body').should('contain', 'SHA-256');
+        cy.get('.modal-body').should('contain', 'SHA-512');
+        cy.get('.modal-footer button').contains('Close').click();
+        cy.get('.modal-title').should('not.exist');
+      }
+    });
+
     cy.get("[name='newCommentContent']").type(comment_reply);
     cy.get("#comment-action-send").click();
 
@@ -83,10 +101,36 @@ describe("globaleaks process", function () {
       cy.get("#tip-action-star").click();
     });
 
+    cy.get('.tip-action-file-info').first().should('be.visible').click();
+    cy.get('.modal-title').should('be.visible');
+    cy.get('.modal-body').should('contain', 'SHA-256');
+    cy.get('.modal-body').should('contain', 'SHA-512');
+    cy.get('.modal-body code').should('have.length.at.least', 2);
+    cy.get('.modal-footer button').contains('Close').click();
+    cy.get('.modal-title').should('not.exist');
+    cy.get('#TipQuestionnaireAnswersBox').should('be.visible');
+    cy.get('#TipQuestionnaireAnswersBox .btn-primary').first().click();
+    cy.get('.modal-title').should('be.visible');
+    cy.get('.modal-body').should('contain', 'SHA-256');
+    cy.get('.modal-body').should('contain', 'SHA-512');
+    cy.get('.modal-footer button').contains('Close').click();
+    cy.get('.modal-title').should('not.exist');
+
     const comment = "comment";
     cy.get("[name='newCommentContent']").type(comment);
     cy.get("#comment-action-send").click();
     cy.get('#comment-0').should('contain', comment);
+
+    cy.get('#comment-0').then(($comment) => {
+      if ($comment.find('.btn-primary').length > 0) {
+        cy.get('#comment-0 .btn-primary').first().click();
+        cy.get('.modal-title').should('be.visible');
+        cy.get('.modal-body').should('contain', 'SHA-256');
+        cy.get('.modal-body').should('contain', 'SHA-512');
+        cy.get('.modal-footer button').contains('Close').click();
+        cy.get('.modal-title').should('not.exist');
+      }
+    });
 
     // Change the expiration date
     cy.get('#actionsDropdown').click();
@@ -136,6 +180,15 @@ describe("globaleaks process", function () {
       './cypress/fixtures/files/test.txt',
       { force: true }
     );
+
+    cy.get('#fileListBody tr').should('exist');
+    
+    cy.get('.tip-action-file-info').should('be.visible').first().click();
+    cy.get('.modal-title').should('be.visible');
+    cy.get('.modal-body').should('contain', 'SHA-256');
+    cy.get('.modal-body').should('contain', 'SHA-512');
+    cy.get('.modal-footer button').contains('Close').click();
+    cy.get('.modal-title').should('not.exist');
 
     cy.get('.download-button').should('be.visible');
     cy.get('.download-button').first().click();
