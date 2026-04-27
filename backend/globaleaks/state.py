@@ -4,6 +4,7 @@ import sys
 import traceback
 
 from acme.errors import ValidationError
+from datetime import datetime, timedelta, timezone
 
 from txtorcon.torcontrolprotocol import TorProtocolError
 from sqlalchemy.exc import OperationalError
@@ -79,7 +80,9 @@ class StateClass(ObjectDict, metaclass=Singleton):
         self.jobs_monitor = None
         self.services = []
         self.tor = None
-
+        self.antivirus = None
+        self.antivirus_files = []
+        self.antivirus_file_ids = set()
         self.exceptions = {}
         self.exceptions_email_count = 0
 
@@ -107,6 +110,7 @@ class StateClass(ObjectDict, metaclass=Singleton):
         self.settings.eval_paths()
         self.create_directories()
         self.field_attrs = read_json_file(self.settings.field_attrs_file)
+        self.create_configs()
         self.csp_report_log = openLogFile(Settings.csp_report_file, self.settings.log_file_size, self.settings.num_log_files)
 
     def set_orm_tp(self, orm_tp):
@@ -118,6 +122,18 @@ class StateClass(ObjectDict, metaclass=Singleton):
             return get_tor_agent(self.settings.socks_port)
 
         return get_web_agent()
+
+    def track_antivirus_files(self, tip, crypto_tip_prv_key, files_to_track=None):
+        if files_to_track is None:
+            files_to_track = set()
+
+        for file_obj in tip.get('wbfiles', []) + tip.get('rfiles', []):
+            name = file_obj.get('id')
+            if name in self.antivirus_file_ids:
+                continue
+            if name in files_to_track:
+                self.antivirus_files.append((name, crypto_tip_prv_key))
+                self.antivirus_file_ids.add(name)
 
     def create_directory(self, path):
         """
@@ -147,8 +163,35 @@ class StateClass(ObjectDict, metaclass=Singleton):
                         self.settings.attachments_path,
                         self.settings.ramdisk_path,
                         self.settings.tmp_path,
-                        self.settings.log_path]:
+                        self.settings.log_path,
+                        self.settings.antivirus_path,
+                        self.settings.antivirus_db_path,
+                        self.settings.antivirus_tmp_path]:
             self.create_directory(dirpath)
+
+    def create_configs(self):
+        temp_dir = self.settings.antivirus_tmp_path
+        db_dir = self.settings.antivirus_db_path
+        socket = os.path.join(self.settings.antivirus_path, 'clamd.sock')
+        group_id = os.getgid()
+        config_content = (
+            f"TemporaryDirectory {temp_dir}\n"
+            f"DatabaseDirectory {db_dir}\n"
+            f"LocalSocket {socket}\n"
+            f"LocalSocketGroup {group_id}\n"
+            f"LocalSocketMode 660\n"
+        )
+        with open(self.settings.conf_clamd, "w") as config_file:
+            config_file.write(config_content)
+
+        config_content = (
+            f"DatabaseDirectory {db_dir}\n"
+            f"NotifyClamd {self.settings.conf_clamd}\n"
+            f"DatabaseMirror database.clamav.net"
+
+        )
+        with open(self.settings.conf_freshclam, "w") as config_file:
+            config_file.write(config_content)
 
     def bind_tcp_ports(self):
         # Allocate local ports
@@ -196,46 +239,27 @@ class StateClass(ObjectDict, metaclass=Singleton):
         self.exceptions.clear()
         self.exceptions_email_count = 0
 
-    def sendmail(self, tid, to_address, subject, body, use_smtp2=False):
+    def sendmail(self, tid, to_address, subject, body):
         if self.settings.disable_notifications:
             return succeed(True)
+
         if self.tenants[tid].cache.mode != 'default':
             tid = 1
-        notification = self.tenants[tid].cache.notification
 
-        if notification.smtp2_enabled and use_smtp2:
-            smtp_server = notification.smtp2_server
-            smtp_port = notification.smtp2_port
-            smtp_security = notification.smtp2_security
-            smtp_authentication = notification.smtp2_authentication
-            smtp_username = notification.smtp2_username
-            smtp_password = notification.smtp2_password
-            smtp_source_email = notification.smtp2_source_email
-        else:
-            smtp_server = notification.smtp_server
-            smtp_port = notification.smtp_port
-            smtp_security = notification.smtp_security
-            smtp_authentication = notification.smtp_authentication
-            smtp_username = notification.smtp_username
-            smtp_password = notification.smtp_password
-            smtp_source_email = notification.smtp_source_email
-
-        return sendmail(
-            tid,
-            smtp_server,
-            smtp_port,
-            smtp_security,
-            smtp_authentication,
-            smtp_username,
-            smtp_password,
-            self.tenants[tid].cache.name,
-            smtp_source_email,
-            to_address,
-            self.tenants[tid].cache.name + ' - ' + subject,
-            body,
-            self.tenants[1].cache.anonymize_outgoing_connections,
-            self.settings.socks_port
-        )
+        return sendmail(tid,
+                        self.tenants[tid].cache.notification.smtp_server,
+                        self.tenants[tid].cache.notification.smtp_port,
+                        self.tenants[tid].cache.notification.smtp_security,
+                        self.tenants[tid].cache.notification.smtp_authentication,
+                        self.tenants[tid].cache.notification.smtp_username,
+                        self.tenants[tid].cache.notification.smtp_password,
+                        self.tenants[tid].cache.name,
+                        self.tenants[tid].cache.notification.smtp_source_email,
+                        to_address,
+                        self.tenants[tid].cache.name + ' - ' + subject,
+                        body,
+                        self.tenants[1].cache.anonymize_outgoing_connections,
+                        self.settings.socks_port)
 
     def schedule_support_email(self, tid, text):
         subject = "Support request"

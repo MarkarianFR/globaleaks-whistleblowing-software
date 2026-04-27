@@ -151,6 +151,11 @@ describe("admin add, configure, and delete users", () => {
 
     cy.get('#delete_user').click();
 
+    cy.get('[data-cy="user-total-reports"]').should('be.visible');
+    cy.get('[data-cy="user-exclusive-reports"]').should('be.visible');
+
+    cy.get('[data-cy="user-audit-log"]').should('be.visible');
+
     cy.get('#modal-action-cancel').click();
     cy.get('.modal-title').should('not.exist');
 

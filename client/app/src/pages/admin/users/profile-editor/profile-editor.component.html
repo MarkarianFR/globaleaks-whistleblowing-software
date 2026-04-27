@@ -108,7 +108,7 @@
               <label [ngClass]="{'text-gray': nodeData.tid !== profile.tid}">{{ 'Allow the recipient to delete reports' | translate }}</label>
             </div>
             <div class="form-group">
-                <input class="form-check-input" name="can_postpone_expiration" [(ngModel)]="profile.permissions.can_postpone_expiration" type="checkbox" [disabled]="nodeData.tid !== profile.tid" />
+              <input class="form-check-input" name="can_postpone_expiration" [(ngModel)]="profile.permissions.can_postpone_expiration" type="checkbox" [disabled]="nodeData.tid !== profile.tid" />
               <label [ngClass]="{'text-gray': nodeData.tid !== profile.tid}">{{ "Allow the recipient to edit the reports' expiration date" | translate }}</label>
             </div>
             <div class="form-group">

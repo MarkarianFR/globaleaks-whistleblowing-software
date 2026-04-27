@@ -80,6 +80,58 @@ export class DeleteConfirmationComponent implements OnInit {
   }
 
   confirm() {
+    if (this.user && this.userStats) {
+      this.loadingStats.set(true);
+      this.httpService.requestAdminUserStats(this.user.id).subscribe({
+        next: (freshStats) => {
+          this.loadingStats.set(false);
+          const statsChanged = (
+            freshStats.total_reports !== this.userStats!.total_reports ||
+            freshStats.exclusive_reports !== this.userStats!.exclusive_reports ||
+            freshStats.last_update !== this.userStats!.last_update
+          );
+          if (statsChanged) {
+            this.userStats = freshStats;
+            this.statsChanged = true;
+          } else {
+            this.statsChanged = false;
+            this.proceedWithDeletion();
+          }
+        },
+        error: () => {
+          this.loadingStats.set(false);
+          this.proceedWithDeletion();
+        }
+      });
+      return;
+    }
+
+    if (this.tenant && this.tenantStats) {
+      this.loadingStats.set(true);
+      this.httpService.requestAdminTenantStats(this.tenant.id).subscribe({
+        next: (freshStats) => {
+          this.loadingStats.set(false);
+          const statsChanged = (
+            freshStats.open_reports !== this.tenantStats!.open_reports ||
+            freshStats.total_reports !== this.tenantStats!.total_reports ||
+            freshStats.last_update !== this.tenantStats!.last_update
+          );
+          if (statsChanged) {
+            this.tenantStats = freshStats;
+            this.statsChanged = true;
+          } else {
+            this.statsChanged = false;
+            this.proceedWithDeletion();
+          }
+        },
+        error: () => {
+          this.loadingStats.set(false);
+          this.proceedWithDeletion();
+        }
+      });
+      return;
+    }
+
     this.proceedWithDeletion();
   }
 

@@ -64,6 +64,16 @@
             <span>{{appDataService.errorCodes.message|translate}}</span>
           </div>
         }
+        @case (18) {
+          <div>
+            <span>{{ 'File is infected and cannot be downloaded'|translate }}</span>
+          </div>
+        }
+        @case (19) {
+          <div>
+            <span>{{ 'File is still under antivirus scan. Please try again later'|translate }}</span>
+          </div>
+        }
       }
     </div>
   </div>
