@@ -160,7 +160,7 @@ export interface RFile {
   visibility: string;
   error: boolean;
   author: string;
-  downloaded: boolean;
+  downloads: number;
 }
 
 export interface QuestionWhistleblowerIdentityName {

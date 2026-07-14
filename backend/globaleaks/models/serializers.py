@@ -1,17 +1,14 @@
 import copy
-import json
 import os
 
 
 from sqlalchemy import func, or_, not_
 from sqlalchemy.orm import aliased
-from globaleaks.models import EnumStateFile
+
 from globaleaks import models
 from globaleaks.models.config import ConfigFactory
 from globaleaks.orm import transact
 from globaleaks.state import State
-from globaleaks.utils.crypto import sha256, sha512
-from globaleaks.utils.utility import datetime_null
 
 
 def get_identity_files(data):
@@ -109,9 +106,7 @@ def serialize_comment(session, comment):
         'creation_date': comment.creation_date,
         'content': comment.content,
         'author_id': comment.author_id,
-        'visibility': comment.visibility,
-        'hash_sha256': comment.hash_sha256,
-        'hash_sha512': comment.hash_sha512
+        'visibility': comment.visibility
     }
 
 
@@ -134,31 +129,15 @@ def serialize_redaction(session, redaction):
     }
 
 
-def compute_status(file_obj):
-    state = file_obj.state
-
-    if not state:
-        return EnumStateFile.pending.name.upper()
-
-    if isinstance(state, str):
-        for e in EnumStateFile:
-            if e.name.lower() == state.lower():
-                return e.name.upper()
-        return EnumStateFile.pending.name.upper()
-
-    return EnumStateFile(state).name.upper()
-
-
 def serialize_ifile(session, ifile):
-    error = not os.path.exists(os.path.join(State.settings.attachments_path, ifile.id))
-    status = compute_status(ifile)
+    """
+    Transaction for serializing ifiles
 
-    # A whistleblower's file is considered downloaded as soon as at least one
-    # recipient has accessed it (any WhistleblowerFile copy with a set access_date).
-    downloaded = session.query(models.WhistleblowerFile) \
-                        .filter(models.WhistleblowerFile.internalfile_id == ifile.id,
-                                models.WhistleblowerFile.access_date != datetime_null()) \
-                        .first() is not None
+    :param session: An ORM session
+    :param ifile: The ifile to be serialized
+    :return: The serialized ifile
+    """
+    error = not os.path.exists(os.path.join(State.settings.attachments_path, ifile.id))
 
     return {
         'id': ifile.id,
@@ -167,20 +146,21 @@ def serialize_ifile(session, ifile):
         'size': ifile.size,
         'type': ifile.content_type,
         'reference_id': ifile.reference_id,
-        'status': status,
-        'verification_date': ifile.verification_date,
-        'error': error,
-        'downloaded': downloaded,
-        'hash_sha256': ifile.hash_sha256,
-        'hash_sha512': ifile.hash_sha512
+        'error': error
     }
 
 
 def serialize_wbfile(session, ifile, wbfile):
+    """
+    Transaction for serializing wbfile
+
+    :param session: An ORM session
+    :param ifile: The ifile to be serialized
+    :param wbfile: The wbfile to be serialized
+    :return: The serialized wbfile
+    """
     error = not os.path.exists(os.path.join(State.settings.attachments_path, ifile.id)) and \
         not os.path.exists(os.path.join(State.settings.attachments_path, wbfile.id))
-
-    status = compute_status(ifile)
 
     return {
         'id': wbfile.id,
@@ -190,17 +170,19 @@ def serialize_wbfile(session, ifile, wbfile):
         'size': ifile.size,
         'type': ifile.content_type,
         'reference_id': ifile.reference_id,
-        'status': status,
-        'verification_date': ifile.verification_date,
-        'error': error,
-        'downloaded': wbfile.access_date != datetime_null(),
-        'hash_sha256': ifile.hash_sha256,
-        'hash_sha512': ifile.hash_sha512
+        'error': error
     }
 
+
 def serialize_rfile(session, rfile):
+    """
+    Transaction for serializing rfile
+
+    :param session: An ORM session
+    :param rfile: The rfile to be serialized
+    :return: The serialized rfile
+    """
     error = not os.path.exists(os.path.join(State.settings.attachments_path, rfile.id))
-    status = compute_status(rfile)
 
     return {
         'id': rfile.id,
@@ -210,11 +192,7 @@ def serialize_rfile(session, rfile):
         'type': rfile.content_type,
         'description': rfile.description,
         'visibility': rfile.visibility,
-        'status': status,
-        'verification_date': rfile.verification_date,
-        'error': error,
-        'hash_sha256': rfile.hash_sha256,
-        'hash_sha512': rfile.hash_sha512
+        'error': error
     }
 
 def serialize_itip(session, internaltip, language):
@@ -225,14 +203,9 @@ def serialize_itip(session, internaltip, language):
 
     questionnaires = []
     for ita, aqs in x:
-        questionnaire_data = {'questionnaire_hash': ita.questionnaire_hash, 'answers': ita.answers}
-        questionnaire_json = json.dumps(questionnaire_data, sort_keys=True)
-
         questionnaires.append({
             'steps': serialize_archived_questionnaire_schema(aqs.schema, language),
-            'answers': ita.answers,
-            'hash_sha256': sha256(questionnaire_json).decode(),
-            'hash_sha512': sha512(questionnaire_json).decode()
+            'answers': ita.answers
         })
 
     ret = {
@@ -294,8 +267,6 @@ def serialize_rtip(session, itip, rtip, language):
     ret['important'] = itip.important
     ret['label'] = itip.label
     ret['enable_notifications'] = rtip.enable_notifications
-    ret['itip_last_access'] = ret['last_access']
-    ret['last_access'] = rtip.last_access
 
     iar = session.query(models.IdentityAccessRequest) \
                  .filter(models.IdentityAccessRequest.internaltip_id == itip.id) \
@@ -344,19 +315,14 @@ def serialize_rtip(session, itip, rtip, language):
 
     receiver_ids = active_receiver_ids | other_receiver_ids
 
-    rtips = session.query(models.ReceiverTip).filter(models.ReceiverTip.internaltip_id == itip.id, models.ReceiverTip.receiver_id.in_(receiver_ids)).all()
-    rtip_map = {rtip.receiver_id: rtip for rtip in rtips}
-
     users = session.query(models.User).filter(models.User.id.in_(receiver_ids)).all()
     user_map = {user.id: user for user in users}
     for uid in receiver_ids:
         user = user_map.get(uid)
-        rtip_obj = rtip_map.get(uid)
         ret['receivers'].append({
             'id': uid,
             'name': user.name if user else 'Recipient',
-            'active': uid in active_receiver_ids,
-            'last_access': rtip_obj.last_access if rtip_obj else None
+            'active': uid in active_receiver_ids
         })
 
     return ret
@@ -391,19 +357,14 @@ def serialize_wbtip(session, itip, language):
 
     receiver_ids = active_receiver_ids | other_receiver_ids
 
-    rtips = session.query(models.ReceiverTip).filter(models.ReceiverTip.internaltip_id == itip.id, models.ReceiverTip.receiver_id.in_(receiver_ids)).all()
-    rtip_map = {rtip.receiver_id: rtip for rtip in rtips}
-
     users = session.query(models.User).filter(models.User.id.in_(receiver_ids)).all()
     user_map = {user.id: user for user in users}
     for uid in receiver_ids:
         user = user_map.get(uid)
-        rtip_obj = rtip_map.get(uid)
         ret['receivers'].append({
             'id': uid,
             'name': user.public_name if user else 'Recipient',
-            'active': uid in active_receiver_ids,
-            'last_access': rtip_obj.last_access if rtip_obj else None
+            'active': uid in active_receiver_ids
         })
 
     return ret

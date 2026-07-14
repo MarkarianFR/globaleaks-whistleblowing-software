@@ -259,8 +259,7 @@ class _Comment(Model):
     content = Column(UnicodeText, nullable=False)
     visibility = Column(Enum(EnumVisibility), default='public', nullable=False)
     new = Column(Boolean, default=True, nullable=False)
-    hash_sha256 = Column(UnicodeText(64), default='', nullable=True)
-    hash_sha512 = Column(UnicodeText(128), default='', nullable=True)
+
 
 class Comment(_Comment, Base):
     @declared_attr
@@ -720,8 +719,7 @@ class _InternalFile(Model):
     reference_id = Column(UnicodeText(36), default='', nullable=False)
     verification_date = Column(DateTime, nullable=True)
     state = Column(Enum(EnumStateFile), default='pending', nullable=False)
-    hash_sha256 = Column(UnicodeText(64), default='', nullable=True)
-    hash_sha512 = Column(UnicodeText(128), default='', nullable=True)
+
 
 class InternalFile(_InternalFile, Base):
     @declared_attr
@@ -920,10 +918,7 @@ class _ReceiverFile(Model):
     description = Column(UnicodeText, default="", nullable=False)
     visibility = Column(Enum(EnumVisibility), default='public', nullable=False)
     new = Column(Boolean, default=True, nullable=False)
-    hash_sha256 = Column(UnicodeText(64), default='', nullable=True)
-    hash_sha512 = Column(UnicodeText(128), default='', nullable=True)
-    state = Column(Enum(EnumStateFile), default='pending', nullable=False)
-    verification_date = Column(DateTime, nullable=True)
+
 
 class ReceiverFile(_ReceiverFile, Base):
     @declared_attr
@@ -1132,6 +1127,8 @@ class _Tenant(Model):
     id = Column(Integer, primary_key=True)
     creation_date = Column(DateTime, default=datetime_now, nullable=False)
     active = Column(Boolean, default=False, nullable=False)
+    affiliated = Column(Boolean, nullable=True)
+    external = Column(Boolean, default=False, nullable=False)
 
     bool_keys = ['active']
 
@@ -1209,6 +1206,7 @@ class _User(Model):
                  'can_edit_general_settings',
                  'forcefully_selected',
                  'readonly',
+                 'can_download_infected',
                  'clicked_recovery_key']
 
     date_keys = ['accepted_privacy_policy',

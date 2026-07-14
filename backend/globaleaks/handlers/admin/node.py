@@ -1,3 +1,5 @@
+import json
+
 from globaleaks.state import State
 from twisted.internet.defer import inlineCallbacks, returnValue
 
@@ -5,12 +7,12 @@ from globaleaks import models, LANGUAGES_SUPPORTED_CODES, LANGUAGES_SUPPORTED
 from globaleaks.handlers.base import BaseHandler
 from globaleaks.handlers.public import db_get_languages
 from globaleaks.models import EnabledLanguage
-from globaleaks.models.enums import EnumStateFile
 from globaleaks.models.config import ConfigFactory, ConfigL10NFactory
 from globaleaks.orm import db_del, tw
 from globaleaks.rest import errors, requests
 from globaleaks.utils.fs import read_file
 from globaleaks.utils.log import log
+from globaleaks.models import EnabledLanguage
 
 def db_update_enabled_languages(session, tid, languages, default_language):
     """
@@ -87,50 +89,6 @@ def db_admin_serialize_node(session, tid, language, config_desc='node'):
     return ret
 
 
-def db_reset_antivirus_verification(session, tid):
-    for ifile in session.query(models.InternalFile) \
-                        .join(models.InternalTip, models.InternalFile.internaltip_id == models.InternalTip.id) \
-                        .filter(models.InternalTip.tid == tid):
-        ifile.state = EnumStateFile.pending.name
-        ifile.verification_date = None
-
-    for rfile in session.query(models.ReceiverFile) \
-                        .join(models.InternalTip, models.ReceiverFile.internaltip_id == models.InternalTip.id) \
-                        .filter(models.InternalTip.tid == tid):
-        rfile.state = EnumStateFile.pending.name
-        rfile.verification_date = None
-
-
-def clear_queued_antivirus_scans_for_tenant(session, tid):
-    from globaleaks.state import State
-
-    queued_file_ids = {file_id for file_id, _ in State.antivirus_files}
-    if not queued_file_ids:
-        return
-
-    tenant_file_ids = set()
-
-    tenant_file_ids.update(
-        file_id for (file_id,) in session.query(models.InternalFile.id)
-                                     .join(models.InternalTip, models.InternalFile.internaltip_id == models.InternalTip.id)
-                                     .filter(models.InternalTip.tid == tid,
-                                             models.InternalFile.id.in_(queued_file_ids))
-    )
-    tenant_file_ids.update(
-        file_id for (file_id,) in session.query(models.ReceiverFile.id)
-                                     .join(models.InternalTip, models.ReceiverFile.internaltip_id == models.InternalTip.id)
-                                     .filter(models.InternalTip.tid == tid,
-                                             models.ReceiverFile.id.in_(queued_file_ids))
-    )
-
-    if not tenant_file_ids:
-        return
-
-    State.antivirus_files = [(file_id, tip_prv_key) for file_id, tip_prv_key in State.antivirus_files
-                             if file_id not in tenant_file_ids]
-    State.antivirus_file_ids.difference_update(tenant_file_ids)
-
-
 def db_update_node(session, tid, user_session, request, language):
     """
     Transaction to update the node configuration
@@ -145,14 +103,8 @@ def db_update_node(session, tid, user_session, request, language):
     root_config = ConfigFactory(session, 1)
 
     config = ConfigFactory(session, tid)
-    antivirus_was_enabled = config.get_val('antivirus_enabled')
 
     config.update('node', request)
-
-    antivirus_is_enabled = request.get('antivirus_enabled', antivirus_was_enabled)
-    if antivirus_was_enabled and not antivirus_is_enabled:
-        db_reset_antivirus_verification(session, tid)
-        clear_queued_antivirus_scans_for_tenant(session, tid)
 
     if 'languages_enabled' in request and 'default_language' in request:
         db_update_enabled_languages(session,
@@ -210,14 +162,35 @@ class NodeInstance(BaseHandler):
         """
         config = yield self.determine_allow_config_filter()
 
-        request = yield self.validate_request(self.request.content.read(),
-                                              config[1])
+        raw_request = self.request.content.read()
+        if config[1] == requests.AdminNodeDesc:
+            try:
+                parsed_request = json.loads(raw_request)
+            except:
+                raise errors.InputValidationError
 
-        # When IDP authentication is enabled, validate server-side that the
-        # configured issuer is reachable and exposes a usable JWKS before
-        # persisting the change. This is done on the backend (not in the
-        # browser) so it is not constrained by the client CSP connect-src.
-        if request.get('idp') and request.get('idp_issuer'):
+            if 'default_user_profile' not in parsed_request:
+                parsed_request['default_user_profile'] = State.tenants[self.request.tid].cache.get('default_user_profile', '')
+
+            raw_request = json.dumps(parsed_request)
+
+        request = yield self.validate_request(raw_request, config[1])
+
+        if self.request.tid == 1 and request.get('idp') == 'idp-tenant':
+            raise errors.InputValidationError('Root tenant cannot use tenant IdP mode')
+
+        requires_local_issuer = request.get('idp') == 'idp-tenant' or \
+            (self.request.tid == 1 and request.get('idp') == 'idp-root')
+
+        if requires_local_issuer and not request.get('idp_issuer'):
+            raise errors.InputValidationError('IDP issuer is required when IDP is enabled')
+
+        if self.request.tid != 1 and request.get('idp') == 'idp-root' and not State.tenants[1].cache.get('idp_issuer'):
+            raise errors.InputValidationError('Root IdP issuer is not configured')
+
+        # When a local IDP issuer is configured, validate server-side that it is
+        # reachable and exposes a usable JWKS before persisting the change.
+        if requires_local_issuer:
             try:
                 yield State.oidcauth.validate_issuer(request['idp_issuer'])
             except Exception:
@@ -245,11 +218,5 @@ class NodeInstance(BaseHandler):
                     ret["backup_job_status"] = backup_job["status"]
             else:
                 yield stop_job("Backup")
-
-        tenant = self.state.tenants.get(self.request.tid)
-        if tenant is not None:
-            for key in ('antivirus_enabled', 'antivirus_clamd_ip', 'antivirus_clamd_port'):
-                if key in ret:
-                    tenant.cache[key] = ret[key]
 
         returnValue(ret)

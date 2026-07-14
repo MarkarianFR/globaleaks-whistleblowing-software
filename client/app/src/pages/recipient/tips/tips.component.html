@@ -30,7 +30,7 @@
   </div>
   <div id="TipList" class="row mt-2">
     <div class="col-md-12 table-responsive">
-      <app-paginated-interface [mode]="'table'" [items]="filteredTips" [orderBy]="sortKey" [orderDesc]="sortReverse" [filterOptLabel]="'Show only unread' | translate" [filterOptFn]="filterNewOrUpdated">
+      <app-paginated-interface [mode]="'table'" [items]="filteredTips" [orderBy]="sortKey" [orderDesc]="sortReverse" [filterOptLabel]="'Unseen' | translate" [filterOptFn]="filterNewOrUpdated">
         <ng-template #header let-tip="item" let-index="index">
           <tr>
             <th>
@@ -370,9 +370,7 @@
                   }
                 }
               </td>
-              <td class="TipInfoRecipientCount">
-                <span [ngbTooltip]="tip.receiver_names" tooltipClass="receiver-tooltip">{{tip.receiver_count}}</span>
-              </td>
+              <td class="TipInfoRecipientCount">{{tip.receiver_count}}</td>
               @if (appDataService.public.node.enable_scoring_system) {
               <td class="TipInfoScore">
                 @switch (tip.score) {

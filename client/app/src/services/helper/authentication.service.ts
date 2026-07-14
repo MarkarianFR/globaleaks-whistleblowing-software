@@ -74,7 +74,7 @@ export class AuthenticationService {
 
   private performLogout() {
     const idToken = this.oauthService.getIdToken();
-    if (this.appDataService.public.node.idp && this.oauthService && idToken) {
+    if (this.appDataService.public.node.idp && this.appDataService.public.node.idp !== "disabled" && this.oauthService && idToken) {
       this.oauthService.logOut({
         client_id: 'globaleaks',
         id_token_hint: idToken,
@@ -119,7 +119,7 @@ export class AuthenticationService {
             if (username === "whistleblower") {
               password = password.replace(/\D/g, "");
             }
-            if(this.appDataService.public.node.idp && this.oauthService && username !== "whistleblower"){
+            if(this.appDataService.public.node.idp && this.appDataService.public.node.idp !== "disabled" && this.oauthService && username !== "whistleblower"){
               const idpUserInfo = this.oauthService.getIdentityClaims();
               username = idpUserInfo["preferred_username"];
             }

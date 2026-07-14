@@ -1,5 +1,3 @@
-from twisted.internet.defer import inlineCallbacks
-
 from globaleaks import models
 from globaleaks.handlers.admin import user
 from globaleaks.tests import helpers

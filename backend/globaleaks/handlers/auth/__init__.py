@@ -210,10 +210,10 @@ class AuthenticationHandler(BaseHandler):
 
         try:
 
-            if State.tenants[tid].cache.idp:
+            if State.tenants[tid].cache.idp in ('idp-root', 'idp-tenant'):
                 if self.request.oidc_token:
-                    preferred_username = self.request.oidc_token.get('preferred_username')
-                    email = self.request.oidc_token.get('email')
+                    preferred_username = self.request.oidc_token['preferred_username'] if 'preferred_username' in self.request.oidc_token else ''
+                    email = self.request.oidc_token['email'] if 'email' in self.request.oidc_token else ''
 
                     def ensure_user(session):
                         user = session.query(User).filter(User.username == preferred_username, User.mail_address == email, User.enabled.is_(True), User.tid == tid).one_or_none()
@@ -316,7 +316,7 @@ class SessionHandler(BaseHandler):
         request = self.validate_request(self.request.content.read(), requests.SessionUpdateDesc)
 
         # Check if the configuration requires authentication via the IDP
-        if State.tenants[self.request.tid].cache.idp:
+        if State.tenants[self.request.tid].cache.idp not in ('idp-root', 'idp-tenant'):
             # If the configuration requires authentication via the IDP session renewal requires valid IDP token
             if not self.request.oidc_token or self.request.oidc_token['preferred_username'] != self.session.username:
                 raise errors.InvalidAuthentication

@@ -38,7 +38,7 @@ from globaleaks.db.migrations.update_68 import Subscriber_v_67
 from globaleaks.db.migrations.update_69 import Field_v_68, InternalTipAnswers_v_68, User_v_68, Tenant_v_68, \
     Subscriber_v_68, InternalFile_v_68, ReceiverFile_v_68, Mail_v_68
 from globaleaks.db.migrations.update_70 import InternalTipAnswers_v_69, User_v_69
-from globaleaks.db.migrations.update_71 import Tenant_v_70, Comment_v_70, InternalFile_v_70, ReceiverFile_v_70
+from globaleaks.db.migrations.update_71 import Tenant_v_70
 
 from globaleaks.orm import get_engine, get_session, make_db_uri
 from globaleaks.models import config, Base
@@ -51,7 +51,7 @@ from globaleaks.utils.utility import datetime_now
 migration_mapping = OrderedDict([
     ('ArchivedSchema', [models._ArchivedSchema, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
     ('AuditLog', [-1, -1, AuditLog_v_61, 0, 0, 0, 0, 0, 0, 0, models._AuditLog, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
-    ('Comment', [Comment_v_64, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Comment_v_70, 0, 0, 0, 0, 0, models._Comment]),
+    ('Comment', [Comment_v_64, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, models._Comment, 0, 0, 0, 0, 0, 0]),
     ('Config', [models._Config, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
     ('ConfigL10N', [models._ConfigL10N, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
     ('ContentForwarding', [-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, models._ContentForwarding, 0, 0]),
@@ -66,7 +66,7 @@ migration_mapping = OrderedDict([
     ('File', [File_v_53, 0, models._File, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
     ('IdentityAccessRequest', [IdentityAccessRequest_v_64, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, models._IdentityAccessRequest, 0, 0, 0, 0, 0, 0]),
     ('IdentityAccessRequestCustodian', [-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, models._IdentityAccessRequestCustodian, 0, 0, 0, 0, 0, 0]),
-    ('InternalFile', [InternalFile_v_64, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, InternalFile_v_68, 0, 0, 0, InternalFile_v_70, 0, models._InternalFile]),
+    ('InternalFile', [InternalFile_v_64, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, InternalFile_v_68, 0, 0, 0, models._InternalFile, 0, 0]),
     ('InternalTip', [InternalTip_v_52, InternalTip_v_57, 0, 0, 0, 0, InternalTip_v_59, 0, InternalTip_v_63, 0, 0, 0, InternalTip_v_64, InternalTip_v_66, 0, models._InternalTip, 0, 0, 0, 0]),
     ('InternalTipAnswers', [InternalTipAnswers_v_68, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, InternalTipAnswers_v_69, models._InternalTipAnswers, 0]),
     ('InternalTipData', [models._InternalTipData, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
@@ -75,7 +75,7 @@ migration_mapping = OrderedDict([
     ('Message', [Message_v_64, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1, -1, -1, -1, -1, -1, -1]),
     ('Questionnaire', [models._Questionnaire, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
     ('ReceiverContext', [models._ReceiverContext, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
-    ('ReceiverFile', [ReceiverFile_v_57, 0, 0, 0, 0, 0, ReceiverFile_v_64, 0, 0, 0, 0, 0, 0, ReceiverFile_v_66, 0, ReceiverFile_v_68, 0, ReceiverFile_v_70, 0, models._ReceiverFile]),
+    ('ReceiverFile', [ReceiverFile_v_57, 0, 0, 0, 0, 0, ReceiverFile_v_64, 0, 0, 0, 0, 0, 0, ReceiverFile_v_66, 0, ReceiverFile_v_68, 0, models._ReceiverFile, 0, 0]),
     ('ReceiverTip', [ReceiverTip_v_52, ReceiverTip_v_57, 0, 0, 0, 0, ReceiverTip_v_58, ReceiverTip_v_59, ReceiverTip_v_61, 0, ReceiverTip_v_64, 0, 0, models._ReceiverTip, 0, 0, 0, 0, 0, 0]),
     ('Redaction', [-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, Redaction_v_66, 0, models._Redaction, 0, 0, 0, 0]),
     ('Redirect', [models._Redirect, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),

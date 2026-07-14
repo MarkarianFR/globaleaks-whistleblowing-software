@@ -37,9 +37,7 @@
                       <i class="fas fa-eraser" aria-hidden="true"></i>
                     </button>
                   }
-                  @if (isCommentRead(comment)) {
-                    <div class="row"><div class="col-md-12"><i class="fas fa-check text-success float-end" ngbTooltip="{{'Seen' | translate}}"></i></div></div>
-                  }
+                  <br/>
                 </div>
               }
               @if (tipService.tip.receivers_by_id[comment.author_id]) {
@@ -56,9 +54,6 @@
                   }
                   @if (comment.type === 'auditlog_update_report_expiration') {
                     <div>{{'Expiration date'|translate}}: {{comment.data.curr_expiration_date * 1000 | date:'dd-MM-yyyy'}}</div>
-                  }
-                  @if (isCommentRead(comment)) {
-                    <div class="row"><div class="col-md-12"><i class="fas fa-check text-success float-end" ngbTooltip="{{'Seen' | translate}}"></i></div></div>
                   }
                 </div>
               }

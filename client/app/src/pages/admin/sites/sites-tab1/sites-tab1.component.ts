@@ -6,6 +6,8 @@ import {FormsModule} from "@angular/forms";
 import {TranslateModule} from "@ngx-translate/core";
 import {SiteslistComponent} from "../siteslist/siteslist.component";
 import {PaginatedInterfaceComponent} from "@app/shared/components/paginated-interface/paginated-interface.component";
+import {NodeResolver} from "@app/shared/resolvers/node.resolver";
+import {Router} from "@angular/router";
 
 
 @Component({
@@ -16,6 +18,8 @@ import {PaginatedInterfaceComponent} from "@app/shared/components/paginated-inte
 })
 export class SitesTab1Component implements OnInit {
   private httpService = inject(HttpService);
+  private nodeResolver = inject(NodeResolver);
+  private router = inject(Router);
 
   newTenant: { name: string, active: boolean, mode: string, profile: string, subdomain: string, is_profile: boolean} = {
     name: "",

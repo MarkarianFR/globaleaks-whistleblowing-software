@@ -1,12 +1,8 @@
 # Handlers dealing with tip interface for whistleblowers (wbtip)
-from io import BytesIO
 import json
-import mimetypes
 import os
 
 from nacl.encoding import Base64Encoder
-from globaleaks.utils.securetempfile import SecureTemporaryFile
-from globaleaks.utils.zipstream import ZipStream
 from twisted.internet.threads import deferToThread
 from twisted.internet.defer import inlineCallbacks, returnValue
 
@@ -24,13 +20,12 @@ from globaleaks.models import serializers
 from globaleaks.orm import db_get, transact
 from globaleaks.rest import errors, requests
 from globaleaks.state import State
-from globaleaks.utils.antivirus import enqueue_antivirus_scan, enqueue_tip_files_for_rescan, get_av_result, prepare_file_download, serialize_files_metadata_csv
-from globaleaks.utils.crypto import GCE, sha256, sha512
+from globaleaks.utils.crypto import GCE
 from globaleaks.utils.fs import directory_traversal_check
 from globaleaks.utils.log import log
 from globaleaks.utils.templating import Templating
 from globaleaks.utils.utility import datetime_now, datetime_null
-from globaleaks.models.config import db_get_config_variable
+
 
 @transact
 def get_report_audit_log(session, tid, user_id):
@@ -105,27 +100,17 @@ def create_comment(session, tid, user_id, content):
     itip.update_date = itip.last_access = datetime_now()
 
     _content = content
-    hash_sha256 = sha256(content)
-    hash_sha512 = sha512(content)
-    _hash_sha256 = hash_sha256.decode()
-    _hash_sha512 = hash_sha512.decode()
     if itip.crypto_tip_pub_key:
         _content = Base64Encoder.encode(GCE.asymmetric_encrypt(itip.crypto_tip_pub_key, content)).decode()
-        _hash_sha256 = Base64Encoder.encode(GCE.asymmetric_encrypt(itip.crypto_tip_pub_key, hash_sha256)).decode()
-        _hash_sha512 = Base64Encoder.encode(GCE.asymmetric_encrypt(itip.crypto_tip_pub_key, hash_sha512)).decode()
 
     comment = models.Comment()
     comment.internaltip_id = itip.id
     comment.content = _content
-    comment.hash_sha256 = _hash_sha256
-    comment.hash_sha512 = _hash_sha512
     session.add(comment)
     session.flush()
 
     ret = serializers.serialize_comment(session, comment)
     ret['content'] = content
-    ret['hash_sha256'] = hash_sha256
-    ret['hash_sha512'] = hash_sha512
 
     return ret
 
@@ -160,13 +145,6 @@ def store_additional_questionnaire_answers(session, tid, user_id, answers, langu
 
     if not context.additional_questionnaire_id:
         return
-
-    for _, field_items in answers.items():
-            for item in field_items:
-                if 'value' in item and item['value']:
-                    val_str = str(item['value'])
-                    item['hash_sha256'] = sha256(val_str).decode()
-                    item['hash_sha512'] = sha512(val_str).decode()
 
     steps = db_get_questionnaire(session, tid, context.additional_questionnaire_id, None)['steps']
     questionnaire_hash = db_archive_questionnaire_schema(session, steps)
@@ -234,9 +212,6 @@ class WBTipInstance(BaseHandler):
     def get(self):
         tip, crypto_tip_prv_key = yield get_wbtip(self.session.user_id, self.request.language)
 
-        if State.tenants[self.request.tid].cache.antivirus_enabled and crypto_tip_prv_key:
-            enqueue_tip_files_for_rescan(tip, GCE.asymmetric_decrypt(self.session.cc, crypto_tip_prv_key))
-
         tip = yield serializers.process_logs(tip, tip['id'])
 
         if crypto_tip_prv_key:
@@ -272,52 +247,24 @@ class WhistleblowerFileDownload(BaseHandler):
                               models.InternalFile.internaltip_id == models.InternalTip.id,
                               models.InternalTip.id == user_id))
         log.debug("Download of file %s by whistleblower %s" % (ifile.id, user_id))
-        antivirus_enabled = db_get_config_variable(session, tid, 'antivirus_enabled')
-        recheck_needed = prepare_file_download(ifile, antivirus_enabled)
 
-        return ifile.name, ifile.id, itip.crypto_tip_prv_key, ifile.state, antivirus_enabled, recheck_needed, ifile.size
+        return ifile.name, ifile.id, itip.crypto_tip_prv_key
 
     @inlineCallbacks
     def get(self, wbfile_id):
-        name, ifile_id, tip_prv_key, state, antivirus_enabled, recheck_needed, size = yield self.download_wbfile(
-            self.request.tid, self.session.user_id, wbfile_id)
+        name, ifile_id, tip_prv_key = yield self.download_wbfile(self.request.tid, self.session.user_id, wbfile_id)
 
-        if recheck_needed and tip_prv_key:
-            _tip_prv_key = GCE.asymmetric_decrypt(self.session.cc, Base64Encoder.decode(tip_prv_key))
-            enqueue_antivirus_scan(ifile_id, _tip_prv_key)
+        filelocation = os.path.join(self.state.settings.attachments_path, ifile_id)
 
-        file_path = os.path.join(self.state.settings.attachments_path, ifile_id)
-        directory_traversal_check(self.state.settings.attachments_path, file_path)
-        self.check_file_presence(file_path)
-
-        files = []
+        directory_traversal_check(self.state.settings.attachments_path, filelocation)
+        self.check_file_presence(filelocation)
 
         if tip_prv_key:
             tip_prv_key = GCE.asymmetric_decrypt(self.session.cc, Base64Encoder.decode(tip_prv_key))
             name = GCE.asymmetric_decrypt(tip_prv_key, Base64Encoder.decode(name.encode())).decode()
-            files.append({'key': tip_prv_key, 'path': file_path, 'name': name})
-        else:
-            files.append({'path': file_path, 'name': name})
+            filelocation = GCE.streaming_encryption_open('DECRYPT', tip_prv_key, filelocation)
 
-        mimetype, _ = mimetypes.guess_type(name)
-        mimetype = mimetype or 'application/octet-stream'
-        if tip_prv_key and size:
-            size = int(GCE.asymmetric_decrypt(tip_prv_key, Base64Encoder.decode(str(size).encode())).decode())
-
-        metadata = serialize_files_metadata_csv([{'name': name, 'type': mimetype,
-                                                  'size': size, 'av_result': get_av_result(state)}])
-        files.append({'fo': BytesIO(metadata), 'name': 'metadata.csv'})
-
-        zipstream = ZipStream(files)
-        stf = SecureTemporaryFile(self.state.settings.tmp_path)
-
-        with stf.open('w') as f:
-            for x in zipstream:
-                f.write(x)
-
-        zip_name = os.path.splitext(name)[0] + '.zip'
-        with stf.open('r') as f:
-            yield self.write_file_as_download(zip_name, f)
+        yield self.write_file_as_download(name, filelocation)
 
 
 class ReceiverFileDownload(BaseHandler):
@@ -338,53 +285,24 @@ class ReceiverFileDownload(BaseHandler):
         if rfile.access_date == datetime_null():
             rfile.access_date = datetime_now()
 
-        antivirus_enabled = db_get_config_variable(session, tid, 'antivirus_enabled')
-        recheck_needed = prepare_file_download(rfile, antivirus_enabled)
-
         log.debug("Download of file %s by whistleblower %s",
                   rfile.id, self.session.user_id)
 
-        return (rfile.name, rfile.id, Base64Encoder.decode(wbtip.crypto_tip_prv_key), '',
-                rfile.state, recheck_needed, rfile.size)
+        return rfile.name, rfile.id, Base64Encoder.decode(wbtip.crypto_tip_prv_key), ''
 
     @inlineCallbacks
     def get(self, rfile_id):
-        (name, filelocation, tip_prv_key, pgp_key,
-         state, recheck_needed, size) = yield self.download_rfile(self.request.tid, rfile_id)
+        name, filelocation, tip_prv_key, pgp_key = yield self.download_rfile(self.request.tid, rfile_id)
 
-        if recheck_needed and tip_prv_key:
-            _tip_prv_key = GCE.asymmetric_decrypt(self.session.cc, tip_prv_key)
-            enqueue_antivirus_scan(filelocation, _tip_prv_key)
+        filelocation = os.path.join(self.state.settings.attachments_path, filelocation)
+        directory_traversal_check(self.state.settings.attachments_path, filelocation)
 
-        file_path = os.path.join(self.state.settings.attachments_path, filelocation)
-        directory_traversal_check(self.state.settings.attachments_path, file_path)
-
-        files = []
         if tip_prv_key:
             tip_prv_key = GCE.asymmetric_decrypt(self.session.cc, tip_prv_key)
             name = GCE.asymmetric_decrypt(tip_prv_key, Base64Encoder.decode(name.encode())).decode()
-            files.append({'key': tip_prv_key, 'path': file_path, 'name': name})
-        else:
-            files.append({'path': file_path, 'name': name})
+            filelocation = GCE.streaming_encryption_open('DECRYPT', tip_prv_key, filelocation)
 
-        mimetype, _ = mimetypes.guess_type(name)
-        mimetype = mimetype or 'application/octet-stream'
-        if tip_prv_key and size:
-            size = int(GCE.asymmetric_decrypt(tip_prv_key, Base64Encoder.decode(str(size).encode())).decode())
-
-        metadata = serialize_files_metadata_csv([{'name': name, 'type': mimetype,
-                                                  'size': size, 'av_result': get_av_result(state)}])
-        files.append({'fo': BytesIO(metadata), 'name': 'metadata.csv'})
-
-        zipstream = ZipStream(files)
-        stf = SecureTemporaryFile(self.state.settings.tmp_path)
-
-        with stf.open('w') as f:
-            for x in zipstream:
-                f.write(x)
-
-        with stf.open('r') as f:
-            yield self.write_file_as_download(name + '.zip', f, pgp_key)
+        yield self.write_file_as_download(name, filelocation, pgp_key)
 
 
 class WBTipIdentityHandler(BaseHandler):
