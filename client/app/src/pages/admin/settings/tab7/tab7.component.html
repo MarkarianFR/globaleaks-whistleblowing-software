@@ -2,32 +2,31 @@
   <div class="col-md-6">
     <form #contentForm="ngForm">
       <div class="form-group">
-        <label>Authentication</label>
-        <select class="form-control" [(ngModel)]="nodeResolver.dataModel.auth_type" name="auth_type" required>
-          <option value="globaleaks">Default (GlobaLeaks)</option>
-          <option value="idp">IDP (OIDC/Keycloak)</option>
+        <label>Identity Provider Configuration</label>
+        <select class="form-control" [(ngModel)]="nodeResolver.dataModel.idp" name="idp" required>
+          @for (option of (isTenantContext ? tenantIdpOptions : idpOptions); track option.value) {
+            <option [value]="option.value">{{option.label | translate}}</option>
+          }
         </select>
       </div>
-      @if (nodeResolver.dataModel.auth_type === 'globaleaks') {
-        <div class="form-group">
-          <label>Enable Two-Factor Authentication</label>
-          <input type="checkbox" [(ngModel)]="nodeResolver.dataModel.enable2FA" name="enable2FA" />
-        </div>
-        @if (nodeResolver.dataModel.enable2FA) {
-          <div class="form-group">
-            <label>Enforce Two-Factor Authentication</label>
-            <input type="checkbox" [(ngModel)]="nodeResolver.dataModel.enforce2FA" name="enforce2FA" />
-          </div>
-        }
-      }
-      @if (nodeResolver.dataModel.auth_type === 'idp') {
+      @if (requiresLocalIssuer()) {
         <div class="form-group">
           <label>OIDC Issuer URL</label>
           <input type="text" [(ngModel)]="nodeResolver.dataModel.idp_issuer" id="idp-issuer" name="issuer" class="form-control" [pattern]="Constants.issuerRegexp" #issuer="ngModel" [ngClass]="{'is-invalid': issuer.invalid && issuer.touched}" required/>
         </div>
       }
+      @if (nodeResolver.dataModel.root_tenant && nodeResolver.dataModel.idp == "idp-root") {
+        <div class="form-group">
+          <label>{{'Default user profile' | translate}}</label>
+          <select class="form-control" [(ngModel)]="nodeResolver.dataModel.default_user_profile" name="default_user_profile" required>
+            @for (profile of userProfiles; track profile.id) {
+              <option [value]="profile.id">{{profile.name | translate}}</option>
+            }
+          </select>
+        </div>
+      }
       <div class="form-group">
-        <button class="btn btn-primary" id="save" [disabled]="contentForm.invalid || !nodeResolver.dataModel.idp_issuer" (click)="updateNode()">
+        <button class="btn btn-primary" id="save" [disabled]="contentForm.invalid" (click)="updateNode()">
           <i class="fa-solid fa-check"></i> Save
         </button>
       </div>

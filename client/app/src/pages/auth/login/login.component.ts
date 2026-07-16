@@ -36,7 +36,7 @@ export class LoginComponent implements OnInit {
     const params = new URLSearchParams(window.location.search);
     const pendingAuthResponse = params.has("code") || params.has("error");
 
-    if (this.appDataService.public.node.idp && !pendingAuthResponse && !this.oauthService.hasValidAccessToken() && !this.authentication.session) {
+    if (this.appDataService.public.node.idp && this.appDataService.public.node.idp !== "disabled" && !pendingAuthResponse && !this.oauthService.hasValidAccessToken() && !this.authentication.session) {
       this.oauthService.initLoginFlow();
     }
   }

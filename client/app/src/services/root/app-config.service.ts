@@ -59,10 +59,10 @@ export class AppConfigService {
           this.appDataService.updatePublic(data.body);
         }
 
-        if (this.appDataService.public.node.idp) {
+        if (this.appDataService.public.node.idp && this.appDataService.public.node.idp !== "disabled") {
             this.oauthService.configure({
                 issuer: this.appDataService.public.node.idp_issuer,
-                redirectUri: window.location.origin + '/#/login',
+                redirectUri: window.location.origin + '/#' + (this.location.path().startsWith("/signup") ? this.location.path() : "/login"),
                 clientId: 'globaleaks',
                 responseType: 'code',
                 scope: 'openid profile email',

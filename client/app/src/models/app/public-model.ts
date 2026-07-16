@@ -68,8 +68,9 @@ export class Node {
   user_privacy_policy_text: string;
   user_privacy_policy_url: string;
   receipt_salt: string;
-  idp: boolean;
+  idp: string;
   idp_issuer: string;
+  default_user_profile: string;
   antivirus_enabled: boolean;
 }
 

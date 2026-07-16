@@ -516,10 +516,12 @@ class APIResourceWrapper(Resource):
             return b''
 
         # OIDC token verification against the IdP configured on the tenant
-        if State.tenants[request.tid].cache.get('idp'):
+        if State.tenants[request.tid].cache.idp not in (None, '', 'disabled'):
             bearer_token = extract_bearer_token(request)
             if bearer_token:
-                issuer = State.tenants[request.tid].cache.get('idp_issuer')
+                idp_mode = State.tenants[request.tid].cache.idp
+                issuer_tid = 1 if idp_mode == 'idp-root' and 1 in State.tenants else request.tid
+                issuer = State.tenants[issuer_tid].cache.idp_issuer
                 try:
                     request.oidc_token = State.oidcauth.verify_token(bearer_token, issuer)
                 except Exception as e:
@@ -662,8 +664,10 @@ class APIResourceWrapper(Resource):
         if request.path == b'/index.html':
             # Allow the client to reach the tenant's configured IdP (if any)
             idp_connect_src = b""
-            if request.tid in State.tenants and State.tenants[request.tid].cache.get('idp'):
-                idp_origin = idp_origin_from_issuer(State.tenants[request.tid].cache.get('idp_issuer'))
+            if request.tid in State.tenants and State.tenants[request.tid].cache.idp not in (None, '', 'disabled'):
+                idp_mode = State.tenants[request.tid].cache.idp
+                issuer_tid = 1 if idp_mode == 'idp-root' and 1 in State.tenants else request.tid
+                idp_origin = idp_origin_from_issuer(State.tenants[issuer_tid].cache.idp_issuer)
                 if idp_origin:
                     idp_connect_src = b" " + idp_origin
 
