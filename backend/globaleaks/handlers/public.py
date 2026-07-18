@@ -267,9 +267,6 @@ def db_serialize_node(session, tid, language):
     if tid != 1:
         root_tenant_node = ConfigFactory(session, 1)
 
-        if ret['idp'] == 'idp-root':
-            ret['idp_issuer'] = root_tenant_node.get_val('idp_issuer')
-
         for varname in ['version', 'version_db', 'latest_version']:
             ret[varname] = root_tenant_node.get_val(varname)
 

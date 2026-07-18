@@ -83,7 +83,7 @@ ConfigDescriptor = {
     'https_selfsigned_key': Unicode(),
     'https_selfsigned_cert': Unicode(),
     'https_whistleblower': Bool(default=True),
-    'idp': Unicode(default='disabled'),
+    'idp': Bool(default=False),
     'idp_issuer': Unicode(default=''),
     'ip_filter_admin': Unicode(default=''),
     'ip_filter_admin_enable': Bool(default=False),

@@ -210,7 +210,7 @@ class AuthenticationHandler(BaseHandler):
 
         try:
 
-            if State.tenants[tid].cache.idp in ('idp-root', 'idp-tenant'):
+            if State.tenants[tid].cache.idp:
                 if self.request.oidc_token:
                     preferred_username = self.request.oidc_token['preferred_username'] if 'preferred_username' in self.request.oidc_token else ''
                     email = self.request.oidc_token['email'] if 'email' in self.request.oidc_token else ''
@@ -316,7 +316,7 @@ class SessionHandler(BaseHandler):
         request = self.validate_request(self.request.content.read(), requests.SessionUpdateDesc)
 
         # Check if the configuration requires authentication via the IDP
-        if State.tenants[self.request.tid].cache.idp not in ('idp-root', 'idp-tenant'):
+        if State.tenants[self.request.tid].cache.idp:
             # If the configuration requires authentication via the IDP session renewal requires valid IDP token
             if not self.request.oidc_token or self.request.oidc_token['preferred_username'] != self.session.username:
                 raise errors.InvalidAuthentication
@@ -341,9 +341,6 @@ class SessionHandler(BaseHandler):
                      user_id=self.session.properties.get("operator_session"))
         else:
             yield tw(db_log, tid=self.session.tid,  type='logout', user_id=self.session.user_id)
-
-        if not self.session.properties.get('management_session', False):
-            self.request.setHeader(b'Clear-Site-Data', b'"*"')
 
         del Sessions[self.session.id]
 

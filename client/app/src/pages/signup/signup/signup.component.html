@@ -5,10 +5,7 @@
         <div class="idp-auth-block">
           <div class="title">{{'Identity Provider Authentication'|translate}}</div>
           <p>{{'You must authenticate with your identity provider to proceed.'|translate}}</p>
-          <button class="btn btn-primary" type="button" (click)="authenticateWithIDP()" [disabled]="idpLoading">
-            @if (idpLoading) {
-              <span class="spinner-border spinner-border-sm me-2"></span>
-            }
+          <button class="btn btn-primary" type="button" (click)="authenticateWithIDP()">
             <span>{{'Authenticate with IDP'|translate}}</span>
           </button>
         </div>

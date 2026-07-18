@@ -32,7 +32,6 @@ short_text_regexp = r'^.{1,255}$'
 short_text_regexp_or_empty = r'^.{0,255}$'
 languages_list_regexp = r'^([a-zA-Z-]+)?(,\s*[a-zA-Z-]+)*$'
 homepage_regexp = r'^/(submission)?$'
-tenant_mode_regexp = r'^(disabled|idp-root|idp-tenant)$'
 
 field_instance_regexp = (r'^('
                          'instance|'
@@ -270,7 +269,7 @@ AdminNodeDesc = {
     'backup_time': str,
     'backup_period': int,
     'backup_retention': int,
-    'idp': tenant_mode_regexp,
+    'idp': bool,
     'idp_issuer': str,
     'default_user_profile': str,
     'antivirus_enabled': bool,

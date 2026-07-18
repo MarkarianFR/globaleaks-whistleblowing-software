@@ -220,27 +220,18 @@ class NodeInstance(BaseHandler):
                 raise errors.InputValidationError
 
             if 'default_user_profile' not in parsed_request:
-                parsed_request['default_user_profile'] = State.tenants[self.request.tid].cache.get('default_user_profile', '')
+                parsed_request['default_user_profile'] = State.tenants[self.request.tid].cache['default_user_profile']
 
             raw_request = json.dumps(parsed_request)
 
         request = yield self.validate_request(raw_request, config[1])
 
-        if self.request.tid == 1 and request.get('idp') == 'idp-tenant':
-            raise errors.InputValidationError('Root tenant cannot use tenant IdP mode')
-
-        requires_local_issuer = request.get('idp') == 'idp-tenant' or \
-            (self.request.tid == 1 and request.get('idp') == 'idp-root')
-
-        if requires_local_issuer and not request.get('idp_issuer'):
+        if request['idp'] and not request['idp_issuer']:
             raise errors.InputValidationError('IDP issuer is required when IDP is enabled')
-
-        if self.request.tid != 1 and request.get('idp') == 'idp-root' and not State.tenants[1].cache.get('idp_issuer'):
-            raise errors.InputValidationError('Root IdP issuer is not configured')
 
         # When a local IDP issuer is configured, validate server-side that it is
         # reachable and exposes a usable JWKS before persisting the change.
-        if requires_local_issuer:
+        if request['idp']:
             try:
                 yield State.oidcauth.validate_issuer(request['idp_issuer'])
             except Exception:

@@ -3,9 +3,10 @@ import {AppDataService} from "@app/app-data.service";
 import {HttpService} from "@app/shared/services/http.service";
 import {AppConfigService} from "@app/services/root/app-config.service";
 import {Signup} from "@app/models/component-model/signup";
-import {ActivatedRoute} from "@angular/router";
+import {ActivatedRoute, Router} from "@angular/router";
 import {HttpHeaders} from "@angular/common/http";
 import {OAuthService} from "angular-oauth2-oidc";
+import {IdpService} from "@app/services/root/idp.service";
 
 import {SignupdefaultComponent} from "../templates/signupdefault/signupdefault.component";
 import {WbpaComponent} from "../templates/wbpa/wbpa.component";
@@ -23,14 +24,15 @@ export class SignupComponent implements OnInit {
   private httpService = inject(HttpService);
   private appConfig = inject(AppConfigService);
   private route = inject(ActivatedRoute);
+  private router = inject(Router);
   private oauthService = inject(OAuthService);
+  private idpService = inject(IdpService);
 
   hostname = "";
   completed = false;
   step = 1;
   idpRequired = false;
   idpAuthenticated = false;
-  idpLoading = false;
   signup: Signup = {
     "subdomain": "",
     "name": "",
@@ -54,11 +56,10 @@ export class SignupComponent implements OnInit {
     this.signup.token = "token" in queryParams ? queryParams["token"] : "";
     
     const config = this.appDataService.public?.node || {};
-    this.idpRequired = !!config.idp && config.idp !== "disabled";
+    this.idpRequired = !!config.idp;
     this.setIdpClaims();
     if (this.idpRequired) {
       this.oauthService.events.subscribe(() => this.setIdpClaims());
-      this.oauthService.loadDiscoveryDocumentAndTryLogin().then(() => this.setIdpClaims());
     }
     
     if (this.signup.token) {
@@ -77,8 +78,7 @@ export class SignupComponent implements OnInit {
   }
 
   authenticateWithIDP() {
-    this.idpLoading = true;
-    this.oauthService.initLoginFlow();
+    this.idpService.startLogin(this.router.url);
   }
 
   setIdpClaims() {

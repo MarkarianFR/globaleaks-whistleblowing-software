@@ -1,6 +1,6 @@
 @if (!authentication.requireAuthCode) {
   <div>
-    @if (!appDataService.public.node.idp || appDataService.public.node.idp === 'disabled') {
+    @if (!appDataService.public.node.idp) {
       <div class="form-group">
         <label for="default-login-username" class="visually-hidden">{{ 'Username' | translate }}</label>
         <div class="input-group mb-3">

@@ -33,7 +33,7 @@ def signup(session, request, language, oidc_token=None):
         raise errors.ForbiddenOperation
 
     mode_idp = config.get_val('idp')
-    if mode_idp != 'disabled' and not oidc_token:
+    if mode_idp and not oidc_token:
         raise errors.ForbiddenOperation
 
     invite = None
@@ -169,68 +169,33 @@ def db_signup_activation(session, token, hostname, language, idp_claims=None):
 
     node = ConfigFactory(session, tenant.id)
     signup_idp = config.get_val('idp')
-    if signup_idp != 'disabled':
-        node.set_val('idp', signup_idp)
+    if signup_idp:
+        node.set_val('idp', True)
         node.set_val('idp_issuer', config.get_val('idp_issuer'))
 
-    mode = node.get_val('mode')
     salt = node.get_val('receipt_salt')
 
-    if signup_idp == 'disabled':
-        if mode == 'wbpa':
-            skip_admin_account_creation = True
-            admin_password = admin_key = ''
-        else:
-            skip_admin_account_creation = False
-            admin_password = generateRandomPassword(16)
-            admin_salt = GCE.generate_salt(salt + ":" + 'admin')
-            admin_key = GCE.derive_key(admin_password, admin_salt).encode()
+    default_user_profile = node.get_val('default_user_profile')
+    default_profile = None
+    if default_user_profile and default_user_profile != 'none':
+        default_profile = session.query(models.UserProfile).filter(models.UserProfile.id == default_user_profile).one_or_none()
+        if default_profile is None:
+            raise errors.InputValidationError
 
-        receiver_password = generateRandomPassword(16)
-        receiver_salt = GCE.generate_salt(salt + ":" + 'recipient')
-        receiver_key = GCE.derive_key(receiver_password, receiver_salt).encode()
-
-        wizard = {
-            'node_language': signup.language,
-            'node_name': node_name,
-            'admin_username': 'admin',
-            'admin_name': signup.name + ' ' + signup.surname,
-            'admin_password': admin_key,
-            'admin_mail_address': signup.email,
-            'admin_escrow': config.get_val('escrow'),
-            'receiver_username': 'recipient',
-            'receiver_name': signup.name + ' ' + signup.surname,
-            'receiver_password': receiver_key,
-            'receiver_mail_address': signup.email,
-            'profile': 'default',
-            'skip_admin_account_creation': skip_admin_account_creation,
-            'skip_recipient_account_creation': False,
-            'enable_developers_exception_notification': True
-        }
-
-        password_recipient = receiver_password
-        signup_user_role = 'recipient'
-        signup_user_username = 'recipient'
-
+    if default_profile is None:
+        skip_admin_account_creation = True
+        skip_recipient_account_creation = True
+        skip_default_account_creation = True
+        default_role = ''
+        default_username = ''
+        default_user_profile = ''
+        admin_password = admin_key = ''
+        receiver_password = receiver_key = ''
+        generic_password = ''
+        default_key = ''
     else:
-        default_user_profile = node.get_val('default_user_profile')
-
-        default_profile = None
-        if default_user_profile:
-            default_profile = session.query(models.UserProfile).filter(models.UserProfile.id == default_user_profile).one_or_none()
-            if default_profile is None:
-                raise errors.InputValidationError
-
-        if default_profile is None:
-            default_profile = session.query(models.UserProfile).filter(models.UserProfile.tid == node.pid, models.UserProfile.role == 'receiver').first()
-
-        if default_profile is None:
-            default_role = 'receiver'
-            default_user_profile = ''
-        else:
-            default_role = default_profile.role
-            default_user_profile = default_profile.id
-
+        default_role = default_profile.role
+        default_user_profile = default_profile.id
         default_username = 'recipient' if default_role == 'receiver' else default_role
         default_password = generateRandomPassword(16)
         default_salt = GCE.generate_salt(salt + ":" + default_username)
@@ -246,36 +211,36 @@ def db_signup_activation(session, token, hostname, language, idp_claims=None):
         receiver_key = default_key if default_role == 'receiver' else ''
         generic_password = default_password if not skip_default_account_creation else ''
 
-        wizard = {
-            'node_language': signup.language,
-            'node_name': node_name,
-            'admin_username': 'admin',
-            'admin_name': signup.name + ' ' + signup.surname,
-            'admin_password': admin_key,
-            'admin_mail_address': signup.email,
-            'admin_profile_id': default_user_profile if default_role == 'admin' else '',
-            'admin_escrow': config.get_val('escrow'),
-            'receiver_username': 'recipient',
-            'receiver_name': signup.name + ' ' + signup.surname,
-            'receiver_password': receiver_key,
-            'receiver_mail_address': signup.email,
-            'receiver_profile_id': default_user_profile if default_role == 'receiver' else '',
-            'default_username': default_username,
-            'default_name': signup.name + ' ' + signup.surname,
-            'default_password': default_key,
-            'default_mail_address': signup.email,
-            'default_role': default_role,
-            'default_profile_id': default_user_profile if not skip_default_account_creation else '',
-            'profile': 'default',
-            'skip_admin_account_creation': skip_admin_account_creation,
-            'skip_recipient_account_creation': skip_recipient_account_creation,
-            'skip_default_account_creation': skip_default_account_creation,
-            'enable_developers_exception_notification': True
-        }
+    wizard = {
+        'node_language': signup.language,
+        'node_name': node_name,
+        'admin_username': 'admin',
+        'admin_name': signup.name + ' ' + signup.surname,
+        'admin_password': admin_key,
+        'admin_mail_address': signup.email,
+        'admin_profile_id': default_user_profile if default_role == 'admin' else '',
+        'admin_escrow': config.get_val('escrow'),
+        'receiver_username': 'recipient',
+        'receiver_name': signup.name + ' ' + signup.surname,
+        'receiver_password': receiver_key,
+        'receiver_mail_address': signup.email,
+        'receiver_profile_id': default_user_profile if default_role == 'receiver' else '',
+        'default_username': default_username,
+        'default_name': signup.name + ' ' + signup.surname,
+        'default_password': generic_password and default_key or '',
+        'default_mail_address': signup.email,
+        'default_role': default_role,
+        'default_profile_id': default_user_profile if not skip_default_account_creation else '',
+        'profile': 'default',
+        'skip_admin_account_creation': skip_admin_account_creation,
+        'skip_recipient_account_creation': skip_recipient_account_creation,
+        'skip_default_account_creation': skip_default_account_creation,
+        'enable_developers_exception_notification': True
+    }
 
-        password_recipient = receiver_password or generic_password
-        signup_user_role = 'recipient' if default_role == 'receiver' else default_role
-        signup_user_username = default_username
+    password_recipient = receiver_password or generic_password
+    signup_user_role = 'recipient' if default_role == 'receiver' else default_role
+    signup_user_username = default_username
 
     db_wizard(session, signup.tid, hostname, wizard)
 
